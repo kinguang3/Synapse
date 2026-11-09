@@ -1,40 +1,42 @@
 # Synapse
 
-Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存项目、源码、文档、显式记忆和它们之间的关系，为 AI Agent 提供可检索、可解释的本地上下文。
+English | [简体中文](README.zh-CN.md)
 
-## 当前状态
+Synapse is a local-first code and knowledge association engine. It stores projects, source code, documentation, explicit memories, and their relationships in SQLite, giving AI agents searchable and explainable local context.
 
-- Phase 1：可运行的本地知识引擎。
-- Phase 1.5：完成配置、项目级索引锁、FTS 降级、Source/节点事务一致性、崩溃恢复、边界测试、文档与 Benchmark。
-- Phase 2.1：完成本地 stdio MCP Server，提供 8 个项目范围的检索与记忆工具。
-- Phase 2.1.1：在真实 Trae 中完成 8 工具发现和 A-F E2E 调用验证。
-- 尚未实现：HTTP API、文件监听、Embedding/向量检索。
+## Status
 
-`semantic` 模式目前不是真正的语义向量检索；它会返回 `degraded=["semantic_unavailable"]` 并退回词法检索。
+- Phase 1: a working local knowledge engine.
+- Phase 1.5: configuration, project-level index locking, FTS fallback, Source/node transaction consistency, crash recovery, boundary tests, documentation, and benchmarks.
+- Phase 2.1: a local stdio MCP Server with 8 project-scoped retrieval and memory tools.
+- Phase 2.1.1: discovery of all 8 tools and A-F E2E validation in a real Trae session.
+- Not yet implemented: HTTP API, file watching, and embedding/vector retrieval.
 
-已知限制包括：`synapse_recall` 尚未返回完整记忆正文和 tags；`synapse_context` 的模块覆盖存在偏斜；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/limitations.md) 和 [Phase 2.1.1 报告](docs/phase-2.1.1-report.md)。
+`semantic` mode is not true vector semantic retrieval; it returns `degraded=["semantic_unavailable"]` and falls back to lexical retrieval.
 
-## 功能
+Known limitations: `synapse_recall` does not return the full memory content or tags; `synapse_context` has skewed module coverage; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md) and the [Phase 2.1.1 report](docs/phase-2.1.1-report.md).
 
-- Python AST 解析（tree-sitter）与 Markdown 结构解析。
-- 其他常见文本格式以文件级节点兜底。
-- SQLite + FTS5 全文检索，支持中文 unigram/bigram。
-- 代码引用解析、跨文件关系、图扩展检索。
-- 项目上下文压缩，按 token 预算裁剪可选部分。
-- 显式记忆：`fact`、`experience`、`decision`、`preference`、`summary`。
-- 项目级 FileLock，避免同一项目被多个进程同时索引。
-- 进程崩溃后会标记中断的索引运行、取消未完成任务，并由下一次扫描安全重建。
-- 本地 stdio MCP Server，复用同一套 Core、配置和数据目录。
-- MCP 默认只暴露 `keyword` / `hybrid` 检索，不把不可用的语义检索伪装成已实现能力。
-- MCP 工具强制项目范围，并校验节点归属，避免跨项目读取。
+## Features
 
-## 环境要求
+- Python AST parsing (tree-sitter) and structural Markdown parsing.
+- File-level node fallback for other common text formats.
+- SQLite + FTS5 full-text search, including Chinese unigram/bigram indexing.
+- Code reference resolution, cross-file relationships, and graph-expanded retrieval.
+- Project context compression that trims optional sections to a token budget.
+- Explicit memory types: `fact`, `experience`, `decision`, `preference`, and `summary`.
+- Project-level FileLock to prevent concurrent indexing of the same project.
+- After a process crash, interrupted index runs are marked, unfinished tasks are cancelled, and the next scan safely rebuilds.
+- Local stdio MCP Server that reuses the same Core, configuration, and data directory.
+- MCP exposes only `keyword` / `hybrid` retrieval by default, rather than presenting unavailable semantic retrieval as implemented.
+- MCP tools enforce project scope and validate node ownership to prevent cross-project reads.
+
+## Requirements
 
 - Python 3.11+
-- Windows 10/11、Linux 或 macOS
-- SQLite 需启用 FTS5（随 Python 自带 SQLite 通常可用）
+- Windows 10/11, Linux, or macOS
+- SQLite with FTS5 enabled (usually available in the SQLite bundled with Python)
 
-## 快速开始（Windows PowerShell）
+## Quick start (Windows PowerShell)
 
 ```powershell
 cd C:\path\to\Synapse
@@ -44,37 +46,37 @@ python -m pip install -U pip
 python -m pip install -e ".[dev]"
 ```
 
-初始化配置并检查环境：
+Initialize configuration and check the environment:
 
 ```powershell
 synapse config init
 synapse doctor
 ```
 
-注册并索引一个项目：
+Register and index a project:
 
 ```powershell
 synapse projects register . --index
 synapse projects status
 ```
 
-检索与读取上下文：
+Search and build context:
 
 ```powershell
 synapse search "ContextBuilder" --limit 5
 synapse context . --max-tokens 1200
 ```
 
-存储和召回显式记忆：
+Store and recall explicit memories:
 
 ```powershell
 synapse remember . "Use SQLite FTS5 for local retrieval." --type decision --title "Use FTS5"
 synapse recall "FTS5" --limit 5
 ```
 
-查询、索引、记忆和项目管理命令都支持 `--json`，便于 Agent 或脚本调用；`version` 仅输出纯文本。
+Query, indexing, memory, and project-management commands support `--json` for agents and scripts; `version` prints plain text only.
 
-## 常用命令
+## Common commands
 
 ```text
 synapse projects list
@@ -95,14 +97,14 @@ synapse version
 
 ## MCP Server
 
-安装后提供 `synapse-mcp` 入口，也可以使用模块方式启动：
+After installation, use the `synapse-mcp` entry point or start the server as a module:
 
 ```powershell
 synapse-mcp
 python -m synapse.integrations.mcp
 ```
 
-这是本地 stdio MCP Server，不监听端口。外部 Agent 配置示例：
+This is a local stdio MCP Server and does not listen on a port. Example configuration for an external agent:
 
 ```json
 {
@@ -118,7 +120,7 @@ python -m synapse.integrations.mcp
 }
 ```
 
-可用工具：
+Available tools:
 
 - `synapse_projects_list`
 - `synapse_project_status`
@@ -129,34 +131,36 @@ python -m synapse.integrations.mcp
 - `synapse_remember`
 - `synapse_recall`
 
-所有项目级工具都必须传入已注册项目。`synapse_remember` 会写入本地 SQLite；其余工具为只读。stdout 只承载 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/mcp.md)。
+All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/mcp.md).
 
-## 数据位置
+## Data location
 
-默认目录由 `platformdirs` 决定：
+The default directory is determined by `platformdirs`:
 
-- Windows：`%LOCALAPPDATA%\Synapse\`
-- 配置：`<home>\config.toml`
-- 数据库：`<home>\synapse.db`
-- 锁文件：`<home>\locks\index-<project_id>.lock`
+- Windows: `%LOCALAPPDATA%\Synapse\Synapse\`
+- Configuration: `<home>\config.toml`
+- Database: `<home>\synapse.db`
+- Lock files: `<home>\locks\index-<project_id>.lock`
 
-可以通过 `SYNAPSE_HOME`、`SYNAPSE_CONFIG` 覆盖。详见 [配置文档](docs/configuration.md)。
+Override these paths with `SYNAPSE_HOME` and `SYNAPSE_CONFIG`. See the [configuration documentation](docs/configuration.md).
 
-## 文档
+## Documentation
 
-- [快速开始](docs/getting-started.md)
-- [架构](docs/architecture.md)
+The detailed documentation is currently written in Chinese:
+
+- [Getting started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
 - [CLI](docs/cli.md)
-- [配置](docs/configuration.md)
-- [数据模型](docs/data-model.md)
+- [Configuration](docs/configuration.md)
+- [Data model](docs/data-model.md)
 - [MCP Server](docs/mcp.md)
-- [限制与边界](docs/limitations.md)
-- [开发与测试](docs/development.md)
-- [Phase 1.5 报告](docs/phase-1.5-report.md)
-- [Phase 2.1 报告](docs/phase-2.1-report.md)
-- [Phase 2.1.1 真实 Trae E2E 报告](docs/phase-2.1.1-report.md)
+- [Limitations](docs/limitations.md)
+- [Development and testing](docs/development.md)
+- [Phase 1.5 report](docs/phase-1.5-report.md)
+- [Phase 2.1 report](docs/phase-2.1-report.md)
+- [Phase 2.1.1 real Trae E2E report](docs/phase-2.1.1-report.md)
 
-## 开发
+## Development
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
@@ -164,7 +168,7 @@ python -m synapse.integrations.mcp
 .\.venv\Scripts\python.exe -m mypy src
 ```
 
-性能基准：
+Performance benchmark:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\benchmark.py --project . --runs 3
@@ -172,4 +176,4 @@ python -m synapse.integrations.mcp
 
 ## License
 
-当前仓库未声明开源许可证。公开仓库发布前，项目所有者需要明确选择并添加许可证；在添加许可证前，不应默认视为可自由分发。
+Apache License 2.0. See [LICENSE](LICENSE).

@@ -10,8 +10,8 @@
 ## 默认位置
 
 ```text
-Windows: %LOCALAPPDATA%\Synapse\config.toml
-Windows: %LOCALAPPDATA%\Synapse\synapse.db
+Windows: %LOCALAPPDATA%\Synapse\Synapse\config.toml
+Windows: %LOCALAPPDATA%\Synapse\Synapse\synapse.db
 Linux:   ~/.local/share/Synapse/config.toml
 macOS:   ~/Library/Application Support/Synapse/config.toml
 ```

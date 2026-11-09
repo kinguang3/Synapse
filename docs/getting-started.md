@@ -27,7 +27,7 @@ synapse config show
 synapse doctor
 ```
 
-默认配置和数据库位于 `%LOCALAPPDATA%\Synapse\`。测试和基准会使用临时 home，不会写入真实数据库。
+默认配置和数据库位于 `%LOCALAPPDATA%\Synapse\Synapse\`。测试和基准会使用临时 home，不会写入真实数据库。
 
 ## 3. 注册项目
 
