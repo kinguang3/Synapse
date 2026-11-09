@@ -1,0 +1,579 @@
+{
+  "environment": {
+    "generated_at": "2026-11-09T08:21:20+00:00",
+    "synapse_version": "0.1.0",
+    "python": "3.12.8",
+    "sqlite": "3.45.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "machine": "AMD64",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "cpu_count": 24,
+    "cwd": "<repo-root>"
+  },
+  "runs": 3,
+  "workers": 4,
+  "datasets": [
+    {
+      "name": "Synapse",
+      "path": "<repo-root>",
+      "summary": {
+        "cold": {
+          "median_ms": 459.726,
+          "min_ms": 448.043,
+          "max_ms": 462.314
+        },
+        "warm_incremental": {
+          "median_ms": 45.741,
+          "min_ms": 45.695,
+          "max_ms": 46.945
+        },
+        "full": {
+          "median_ms": 482.886,
+          "min_ms": 480.031,
+          "max_ms": 488.269
+        },
+        "project_stats": {
+          "nodes": 604,
+          "node_types": {
+            "class": 76,
+            "doc_section": 97,
+            "document": 9,
+            "file": 70,
+            "function": 175,
+            "method": 177
+          },
+          "relations": 1199,
+          "sources": 79,
+          "unresolved_refs": 445
+        },
+        "cold_stats": {
+          "scanned": 79,
+          "changed": 79,
+          "unchanged": 0,
+          "deleted": 0,
+          "renamed": 0,
+          "nodes_upserted": 604,
+          "nodes_removed": 0,
+          "relations_upserted": 777,
+          "unresolved": 445,
+          "resolved": 453,
+          "failed": 0,
+          "recovered_runs": 0,
+          "recovered_tasks": 0,
+          "duration_ms": 468,
+          "errors": []
+        },
+        "database_bytes": 3362816,
+        "failed": 0
+      },
+      "runs": [
+        {
+          "cold": {
+            "wall_ms": 462.314,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 468,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 45.695,
+            "stats": {
+              "scanned": 79,
+              "changed": 0,
+              "unchanged": 79,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 445,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 47,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 488.269,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 484,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 604,
+            "node_types": {
+              "class": 76,
+              "doc_section": 97,
+              "document": 9,
+              "file": 70,
+              "function": 175,
+              "method": 177
+            },
+            "relations": 1199,
+            "sources": 79,
+            "unresolved_refs": 445
+          },
+          "database_bytes": 3362816
+        },
+        {
+          "cold": {
+            "wall_ms": 459.726,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 452,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 46.945,
+            "stats": {
+              "scanned": 79,
+              "changed": 0,
+              "unchanged": 79,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 445,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 47,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 480.031,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 469,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 604,
+            "node_types": {
+              "class": 76,
+              "doc_section": 97,
+              "document": 9,
+              "file": 70,
+              "function": 175,
+              "method": 177
+            },
+            "relations": 1199,
+            "sources": 79,
+            "unresolved_refs": 445
+          },
+          "database_bytes": 3354624
+        },
+        {
+          "cold": {
+            "wall_ms": 448.043,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 452,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 45.741,
+            "stats": {
+              "scanned": 79,
+              "changed": 0,
+              "unchanged": 79,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 445,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 47,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 482.886,
+            "stats": {
+              "scanned": 79,
+              "changed": 79,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 604,
+              "nodes_removed": 0,
+              "relations_upserted": 777,
+              "unresolved": 445,
+              "resolved": 453,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 469,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 604,
+            "node_types": {
+              "class": 76,
+              "doc_section": 97,
+              "document": 9,
+              "file": 70,
+              "function": 175,
+              "method": 177
+            },
+            "relations": 1199,
+            "sources": 79,
+            "unresolved_refs": 445
+          },
+          "database_bytes": 3375104
+        }
+      ]
+    },
+    {
+      "name": "recommendation",
+      "path": "<test-project>",
+      "summary": {
+        "cold": {
+          "median_ms": 37.235,
+          "min_ms": 37.17,
+          "max_ms": 55.314
+        },
+        "warm_incremental": {
+          "median_ms": 6.143,
+          "min_ms": 6.063,
+          "max_ms": 6.96
+        },
+        "full": {
+          "median_ms": 37.489,
+          "min_ms": 36.7,
+          "max_ms": 38.801
+        },
+        "project_stats": {
+          "nodes": 27,
+          "node_types": {
+            "class": 1,
+            "file": 9,
+            "function": 17
+          },
+          "relations": 55,
+          "sources": 9,
+          "unresolved_refs": 90
+        },
+        "cold_stats": {
+          "scanned": 9,
+          "changed": 9,
+          "unchanged": 0,
+          "deleted": 0,
+          "renamed": 0,
+          "nodes_upserted": 27,
+          "nodes_removed": 0,
+          "relations_upserted": 30,
+          "unresolved": 90,
+          "resolved": 47,
+          "failed": 0,
+          "recovered_runs": 0,
+          "recovered_tasks": 0,
+          "duration_ms": 62,
+          "errors": []
+        },
+        "database_bytes": 425984,
+        "failed": 0
+      },
+      "runs": [
+        {
+          "cold": {
+            "wall_ms": 55.314,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 62,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 6.96,
+            "stats": {
+              "scanned": 9,
+              "changed": 0,
+              "unchanged": 9,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 90,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 0,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 38.801,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 47,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 27,
+            "node_types": {
+              "class": 1,
+              "file": 9,
+              "function": 17
+            },
+            "relations": 55,
+            "sources": 9,
+            "unresolved_refs": 90
+          },
+          "database_bytes": 425984
+        },
+        {
+          "cold": {
+            "wall_ms": 37.17,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 32,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 6.143,
+            "stats": {
+              "scanned": 9,
+              "changed": 0,
+              "unchanged": 9,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 90,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 0,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 37.489,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 30,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 27,
+            "node_types": {
+              "class": 1,
+              "file": 9,
+              "function": 17
+            },
+            "relations": 55,
+            "sources": 9,
+            "unresolved_refs": 90
+          },
+          "database_bytes": 401408
+        },
+        {
+          "cold": {
+            "wall_ms": 37.235,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 30,
+              "errors": []
+            }
+          },
+          "warm_incremental": {
+            "wall_ms": 6.063,
+            "stats": {
+              "scanned": 9,
+              "changed": 0,
+              "unchanged": 9,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 0,
+              "nodes_removed": 0,
+              "relations_upserted": 0,
+              "unresolved": 90,
+              "resolved": 0,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 0,
+              "errors": []
+            }
+          },
+          "full": {
+            "wall_ms": 36.7,
+            "stats": {
+              "scanned": 9,
+              "changed": 9,
+              "unchanged": 0,
+              "deleted": 0,
+              "renamed": 0,
+              "nodes_upserted": 27,
+              "nodes_removed": 0,
+              "relations_upserted": 30,
+              "unresolved": 90,
+              "resolved": 47,
+              "failed": 0,
+              "recovered_runs": 0,
+              "recovered_tasks": 0,
+              "duration_ms": 30,
+              "errors": []
+            }
+          },
+          "project_stats": {
+            "nodes": 27,
+            "node_types": {
+              "class": 1,
+              "file": 9,
+              "function": 17
+            },
+            "relations": 55,
+            "sources": 9,
+            "unresolved_refs": 90
+          },
+          "database_bytes": 393216
+        }
+      ]
+    }
+  ]
+}
