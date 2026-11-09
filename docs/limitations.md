@@ -54,12 +54,13 @@
 - 节点工具会校验节点属于指定项目；`path_prefix` 只接受项目内相对路径。
 - 只暴露 `keyword` / `hybrid`，不暴露不可用的 `semantic`。
 - `synapse_remember` 会写入本地 SQLite；调用方需要自行决定何时写入记忆。
-- `synapse_recall` 当前不返回完整 `content` 和 `tags`，只返回 `summary`、`snippet` 等检索字段；`summary` 在写入时截取前 300 字符。
+- `synapse_recall` 只返回 `summary`、`snippet` 等检索字段；完整正文和 tags 需要通过 `synapse_memory_get` 按 `node_id` 读取。`summary` 在写入时截取前 300 字符。
+- `synapse_memory_get` 只读取 `memory`/`note` 节点，并强制校验节点属于指定项目。
 - `synapse_context` 在较小 `max_tokens` 下可能优先返回 Repository 层，`decisions`、`recent_changes` 可能为空。
 - 图模型主要覆盖 `CALLS`、`IMPORTS`、`CONTAINS` 等关系；构造函数参数注入不会自动成为图边，需要结合源码核对。
 - Core 调用在单个 worker 线程上串行执行；一个 MCP 进程内的并发请求不会并行访问数据库。
 - 进程退出时关闭 `Application`；外部 Client 负责重启崩溃或退出的 Server。
-- 已在真实 Trae CN `3.4.16` 中通过对话界面验证 8 个 MCP 工具的发现和 A-F 调用；详见 `docs/phase-2.1.1-report.md`。
+- 已在真实 Trae CN `3.4.16` 中通过对话界面验证 8 个 MCP 工具的发现和 A-F 调用；Phase 2.2.1 的 `synapse_memory_get` 另行验证。
 
 ## 平台
 

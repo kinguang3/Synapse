@@ -85,6 +85,25 @@ search(query)
 
 FTS 查询失败时会抛出 `IndexUnavailable`，上层返回 `degraded=["fts_unavailable"]`，不会吞掉存储错误。
 
+## 记忆读取
+
+```text
+recall(query)
+  -> RetrievalService.search(node_types=[memory, note])
+  -> summary / snippet / node_id
+
+memory_get(node_id, project)
+  -> MemoryTools
+      -> NodeRepository.get(node_id)
+      -> project ownership check
+      -> memory/note type check
+  -> full content + tags + memory_type + provenance + timestamps
+```
+
+- `recall` 负责搜索和排序，不返回完整正文，避免普通检索载荷膨胀。
+- `memory_get` 负责按 ID 读取单条记忆，直接复用 `NodeRepository.get()`，不需要修改 schema。
+- `tags` 在 SQLite 中保存为空格分隔文本，同时原始数组保存在节点 `metadata_json`；读取时优先恢复原始数组。
+
 ## 上下文构建
 
 `ContextBuilder` 读取项目统计、技术栈、重要模块、决策记忆和最近变更，并按 `max_tokens` 裁剪可选列表。裁剪后如果仍有可裁剪内容，结果会带 `truncated=true`。项目与统计字段属于必要信息，始终保留。
@@ -106,7 +125,7 @@ MCP Client
 - 并发：所有 Core 调用串行进入同一个 worker 线程，保证线程本地 SQLite 连接、事务和关闭顺序一致。
 - 日志：Python logging / Rich 输出到 stderr；stdout 只写 MCP JSON-RPC。
 - 错误：`SynapseError` 转为 `ToolError`，内容为稳定 JSON `code/message/details`；未知异常写 stderr，不向客户端返回 traceback。
-- 安全：项目级工具必须显式传项目；节点工具校验 `node.project_id`；`path_prefix` 拒绝绝对路径和 `..`；不暴露全局项目搜索。
+- 安全：项目级工具必须显式传项目；节点工具校验 `node.project_id`；`synapse_memory_get` 额外限制为 `memory`/`note` 节点；`path_prefix` 拒绝绝对路径和 `..`；不暴露全局项目搜索。
 - 能力边界：仅暴露 `keyword` / `hybrid`，不暴露不可用的 `semantic`。
 
 ## 并发模型

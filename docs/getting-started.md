@@ -77,7 +77,7 @@ synapse remember . "选中方案 A。" --type decision --tag architecture
 synapse recall "FTS5"
 ```
 
-记忆会作为 `memory` 节点写入图谱，可被普通搜索、召回和 Context 使用。
+记忆会作为 `memory` 节点写入图谱，可被普通搜索、召回和 Context 使用。MCP 中先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 按 `node_id` 读取完整正文和 tags。
 
 ## 7. 生成上下文
 

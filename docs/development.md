@@ -38,7 +38,7 @@ Python 3.11+。项目使用 hatchling 构建，源码位于 `src/synapse`。
 | `test_context.py` | 决策记忆查询不加载全量节点 |
 | `test_config.py` | 配置优先级、home/config 路径、CLI 一致性 |
 | `test_text.py` | 文本切分、CJK、搜索查询构造 |
-| `test_mcp_server.py` | MCP 初始化、工具发现、schema、错误映射、业务调用、记忆持久化、跨项目拒绝、stdout 纯净性 |
+| `test_mcp_server.py` | MCP 初始化、工具发现、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝、stdout 纯净性 |
 
 ## 运行单个测试
 

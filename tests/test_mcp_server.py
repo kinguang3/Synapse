@@ -26,6 +26,7 @@ EXPECTED_TOOLS = {
     "synapse_context",
     "synapse_remember",
     "synapse_recall",
+    "synapse_memory_get",
 }
 
 
@@ -112,6 +113,14 @@ def test_mcp_protocol_initialize_list_tools_and_error_mapping(tmp_path: Path) ->
             assert remember_tool.annotations is not None
             assert remember_tool.annotations.read_only_hint is False
             assert "Side effect" in (remember_tool.description or "")
+
+            memory_get_tool = next(
+                tool for tool in listed.tools if tool.name == "synapse_memory_get"
+            )
+            assert memory_get_tool.annotations is not None
+            assert memory_get_tool.annotations.read_only_hint is True
+            assert set(memory_get_tool.input_schema["required"]) == {"project", "node_id"}
+            assert "full content" in (memory_get_tool.description or "")
 
             empty = await _call(session, "synapse_projects_list")
             assert empty == {"projects": []}
@@ -208,19 +217,24 @@ def test_mcp_business_mapping_and_memory_persistence(tmp_path: Path) -> None:
             assert context["project"]["id"] == project_id
             assert context["stats"]["nodes"] >= 2
 
+            memory_content = (
+                "Synapse stores retrieval metadata in SQLite FTS5. "
+                + "Long memory tail marker 2.2.1. " * 20
+            ).strip()
             remembered = await _call(
                 session,
                 "synapse_remember",
                 {
                     "project": project_id,
-                    "content": "Synapse stores retrieval metadata in SQLite FTS5.",
+                    "content": memory_content,
                     "title": "SQLite FTS5 memory",
                     "memory_type": "fact",
                     "tags": ["mcp", "sqlite"],
                 },
             )
             memory_node_id = remembered["node"]["node_id"]
-            assert remembered["node"]["content"].startswith("Synapse stores")
+            assert remembered["node"]["content"] == memory_content
+            assert remembered["node"]["tags"] == "mcp sqlite"
 
             recalled = await _call(
                 session,
@@ -231,7 +245,43 @@ def test_mcp_business_mapping_and_memory_persistence(tmp_path: Path) -> None:
                     "mode": "keyword",
                 },
             )
-            assert any(item["node_id"] == memory_node_id for item in recalled["results"])
+            recalled_memory = next(
+                item for item in recalled["results"] if item["node_id"] == memory_node_id
+            )
+            assert recalled_memory["summary"] == memory_content[:300]
+
+            fetched = await _call(
+                session,
+                "synapse_memory_get",
+                {"project": project_id, "node_id": memory_node_id},
+            )
+            assert fetched["node_id"] == memory_node_id
+            assert fetched["content"] == memory_content
+            assert fetched["content"].endswith("Long memory tail marker 2.2.1.")
+            assert fetched["title"] == "SQLite FTS5 memory"
+            assert fetched["memory_type"] == "fact"
+            assert fetched["tags"] == ["mcp", "sqlite"]
+            assert fetched["provenance"] == "user"
+            assert fetched["confidence"] == 1.0
+            assert fetched["created_at"]
+            assert fetched["updated_at"]
+
+            non_memory = await session.call_tool(
+                "synapse_memory_get",
+                {"project": project_id, "node_id": function_node["node_id"]},
+            )
+            assert non_memory.is_error
+            assert non_memory.content
+            assert "INVALID_ARGUMENT" in non_memory.content[0].text
+            assert "不是记忆" in non_memory.content[0].text
+
+            missing_memory = await session.call_tool(
+                "synapse_memory_get",
+                {"project": project_id, "node_id": "missing-memory"},
+            )
+            assert missing_memory.is_error
+            assert missing_memory.content
+            assert "NODE_NOT_FOUND" in missing_memory.content[0].text
 
     with open(os.devnull, "w", encoding="utf-8") as errlog:
         _run(lambda: scenario(errlog))
@@ -241,6 +291,7 @@ def test_mcp_business_mapping_and_memory_persistence(tmp_path: Path) -> None:
         assert stored is not None
         assert stored.project_id == project_id
         assert "SQLite FTS5" in stored.content
+        assert stored.content.endswith("Long memory tail marker 2.2.1.")
 
 
 def test_mcp_rejects_cross_project_node_access(tmp_path: Path) -> None:
@@ -258,6 +309,13 @@ def test_mcp_rejects_cross_project_node_access(tmp_path: Path) -> None:
         node_b = application.nodes.find_by_path(project_b, "app.py")
         assert node_b is not None
         node_b_id = node_b.id
+        memory_b = application.memory_tools.remember(
+            project_b,
+            "Project B only memory.",
+            title="Project B memory",
+            memory_type="fact",
+        )
+        memory_b_id = memory_b["node"]["node_id"]
 
     params = _server_params(home, tmp_path)
 
@@ -275,6 +333,15 @@ def test_mcp_rejects_cross_project_node_access(tmp_path: Path) -> None:
             assert result.content
             assert "INVALID_ARGUMENT" in result.content[0].text
             assert "不属于指定项目" in result.content[0].text
+
+            memory_result = await session.call_tool(
+                "synapse_memory_get",
+                {"project": project_a, "node_id": memory_b_id},
+            )
+            assert memory_result.is_error
+            assert memory_result.content
+            assert "INVALID_ARGUMENT" in memory_result.content[0].text
+            assert "不属于指定项目" in memory_result.content[0].text
 
     with open(os.devnull, "w", encoding="utf-8") as errlog:
         _run(lambda: scenario(errlog))

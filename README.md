@@ -10,11 +10,12 @@ Synapse is a local-first code and knowledge association engine. It stores projec
 - Phase 1.5: configuration, project-level index locking, FTS fallback, Source/node transaction consistency, crash recovery, boundary tests, documentation, and benchmarks.
 - Phase 2.1: a local stdio MCP Server with 8 project-scoped retrieval and memory tools.
 - Phase 2.1.1: discovery of all 8 tools and A-F E2E validation in a real Trae session.
+- Phase 2.2.1: `synapse_memory_get` retrieves the full content and metadata of a recalled memory.
 - Not yet implemented: HTTP API, file watching, and embedding/vector retrieval.
 
 `semantic` mode is not true vector semantic retrieval; it returns `degraded=["semantic_unavailable"]` and falls back to lexical retrieval.
 
-Known limitations: `synapse_recall` does not return the full memory content or tags; `synapse_context` has skewed module coverage; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md) and the [Phase 2.1.1 report](docs/phase-2.1.1-report.md).
+Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; `synapse_context` has skewed module coverage; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md), the [Phase 2.1.1 report](docs/phase-2.1.1-report.md), and the [Phase 2.2.1 report](docs/phase-2.2.1-report.md).
 
 ## Features
 
@@ -130,8 +131,9 @@ Available tools:
 - `synapse_context`
 - `synapse_remember`
 - `synapse_recall`
+- `synapse_memory_get`
 
-All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/mcp.md).
+All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/mcp.md).
 
 ## Data location
 
@@ -159,6 +161,7 @@ The detailed documentation is currently written in Chinese:
 - [Phase 1.5 report](docs/phase-1.5-report.md)
 - [Phase 2.1 report](docs/phase-2.1-report.md)
 - [Phase 2.1.1 real Trae E2E report](docs/phase-2.1.1-report.md)
+- [Phase 2.2.1 memory retrieval report](docs/phase-2.2.1-report.md)
 
 ## Development
 

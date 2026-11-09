@@ -74,11 +74,23 @@ class MemoryTools:
             node_types=[NodeType.MEMORY.value, NodeType.NOTE.value],
         )
 
-    def get(self, node_id: str) -> dict[str, Any]:
+    def get(self, node_id: str, *, project: str | None = None) -> dict[str, Any]:
         node = self._nodes.get(node_id)
         if node is None:
-            raise NodeNotFound(f"节点不存在: {node_id}")
-        return self._node_payload(node)
+            raise NodeNotFound(f"节点不存在: {node_id}", details={"node_id": node_id})
+        if project is not None:
+            resolved = self._projects.resolve(project)
+            if node.project_id != resolved.id:
+                raise InvalidArgument(
+                    "记忆不属于指定项目",
+                    details={"node_id": node_id},
+                )
+        if node.node_type not in {NodeType.MEMORY, NodeType.NOTE}:
+            raise InvalidArgument(
+                "节点不是记忆",
+                details={"node_id": node_id, "node_type": node.node_type.value},
+            )
+        return self._memory_detail_payload(node)
 
     def _node_payload(self, node: Any) -> dict[str, Any]:
         return {
@@ -93,3 +105,21 @@ class MemoryTools:
             "created_at": node.created_at,
             "updated_at": node.updated_at,
         }
+
+    def _memory_detail_payload(self, node: Any) -> dict[str, Any]:
+        return {
+            **self._node_payload(node),
+            "summary": node.summary,
+            "tags": _node_tags(node),
+            "provenance": node.provenance.value,
+        }
+
+
+def _node_tags(node: Any) -> list[str]:
+    metadata = node.metadata if isinstance(node.metadata, dict) else {}
+    tags = metadata.get("tags")
+    if isinstance(tags, list):
+        return [str(item) for item in tags]
+    if isinstance(tags, str):
+        return tags.split()
+    return node.tags.split() if node.tags else []

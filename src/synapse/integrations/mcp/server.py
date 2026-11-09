@@ -361,6 +361,25 @@ class SynapseTools:
 
         return await self._run(operation)
 
+    async def memory_get(
+        self,
+        project: Annotated[
+            str,
+            Field(min_length=1, description="Registered project id, slug, or root path."),
+        ],
+        node_id: Annotated[
+            str,
+            Field(min_length=1, description="Memory node id returned by recall."),
+        ],
+    ) -> dict[str, Any]:
+        """Return the full content and metadata of one memory node."""
+
+        def operation(app: Application) -> dict[str, Any]:
+            resolved = app.projects.resolve(project)
+            return app.memory_tools.get(node_id, project=resolved.id)
+
+        return await self._run(operation)
+
 
 def _error_payload(exc: SynapseError) -> str:
     return json.dumps(exc.to_dict(), ensure_ascii=False)
@@ -414,6 +433,8 @@ def create_server(runtime: McpRuntime) -> MCPServer[Application]:
         instructions=(
             "Call synapse_projects_list first to discover registered projects. "
             "Pass the project id or slug to every project-scoped tool. "
+            "Use synapse_memory_get with a node_id from synapse_recall to read "
+            "the full memory content. "
             "synapse_remember writes to the local Synapse database."
         ),
         version=__version__,
@@ -482,6 +503,16 @@ def create_server(runtime: McpRuntime) -> MCPServer[Application]:
         tools.recall,
         name="synapse_recall",
         description="Search long-term memories previously stored for one project.",
+        annotations=_READ_ONLY,
+        structured_output=False,
+    )
+    server.add_tool(
+        tools.memory_get,
+        name="synapse_memory_get",
+        description=(
+            "Return the full content and metadata of one memory node. "
+            "Use the node_id returned by synapse_recall."
+        ),
         annotations=_READ_ONLY,
         structured_output=False,
     )
