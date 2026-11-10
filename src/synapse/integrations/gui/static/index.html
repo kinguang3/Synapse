@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#09090b" />
+<title>Synapse — Knowledge Workspace</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/fonts.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="8" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7.9 6.8l8.2 1M7 8l3.7 8M16.9 9.7l-3.6 6.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="M14.7 14.7L20 20"/></symbol>
+  <symbol id="i-memory" viewBox="0 0 24 24"><path d="M5 5.5A1.5 1.5 0 016.5 4H18v16H6.5A1.5 1.5 0 015 18.5z"/><path d="M8 8h7M8 12h7M8 16h4"/></symbol>
+  <symbol id="i-context" viewBox="0 0 24 24"><path d="M9 4H7v16h2M15 4h2v16h-2"/><path d="M11 9h2M11 13h2M11 17h2"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H20M17 12v3M14.5 12v2"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-brand" viewBox="0 0 32 32">
+    <defs>
+      <linearGradient id="bg-mark" x1="4" y1="4" x2="28" y2="28">
+        <stop stop-color="#e4e4e7"/>
+        <stop offset="1" stop-color="#71717a"/>
+      </linearGradient>
+      <linearGradient id="bg-edge" x1="8" y1="8" x2="24" y2="24">
+        <stop stop-color="#f4f4f5" stop-opacity="0.9"/>
+        <stop offset="1" stop-color="#d4d4d8" stop-opacity="0.55"/>
+      </linearGradient>
+    </defs>
+    <rect x="1" y="1" width="30" height="30" rx="9" style="fill:#09090b;stroke:rgba(255,255,255,0.32);stroke-width:1"/>
+    <circle cx="16" cy="16" r="9" style="fill:url(#bg-mark);stroke:none" opacity="0.08"/>
+    <path d="M10.5 10.5 16 16l6-5.5M16 16l-1 7" style="fill:none;stroke:url(#bg-edge);stroke-width:1.4;stroke-linecap:round"/>
+    <circle cx="16" cy="16" r="3.1" style="fill:url(#bg-mark);stroke:none"/>
+    <circle cx="10.5" cy="10.5" r="2.1" style="fill:#f4f4f5;stroke:none"/>
+    <circle cx="22.5" cy="10.5" r="2.1" style="fill:#d4d4d8;stroke:none"/>
+    <circle cx="15" cy="23" r="2.1" style="fill:#e4e4e7;stroke:none"/>
+  </symbol>
+</svg>
+
+<div class="app" id="app">
+  <aside class="rail">
+    <div class="brand">
+      <div class="brand-mark"><svg class="brand-svg"><use href="#i-brand"/></svg></div>
+      <div class="brand-text">
+        <div class="brand-name">Synapse</div>
+        <span class="brand-pill">GUI</span>
+      </div>
+    </div>
+
+    <div class="picker">
+      <label for="project-select">PROJECT</label>
+      <select id="project-select"></select>
+      <div class="picker-meta" id="project-meta">未连接</div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button data-route="overview" class="nav-item"><svg><use href="#i-grid"/></svg><span>Overview</span></button>
+      <button data-route="graph" class="nav-item"><svg><use href="#i-graph"/></svg><span>Knowledge Graph</span></button>
+      <button data-route="search" class="nav-item"><svg><use href="#i-search"/></svg><span>Search</span></button>
+      <button data-route="memory" class="nav-item"><svg><use href="#i-memory"/></svg><span>Memory</span></button>
+      <button data-route="context" class="nav-item"><svg><use href="#i-context"/></svg><span>Context</span></button>
+      <button data-route="indexing" class="nav-item"><svg><use href="#i-pulse"/></svg><span>Indexing</span></button>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="conn" id="conn-state"><span class="dot"></span><span id="conn-text">LOCKED</span></div>
+      <button class="rail-btn" id="token-btn"><svg><use href="#i-key"/></svg><span>Access token</span></button>
+      <p class="rail-note">One local SQLite knowledge base, shared by MCP, CLI and this GUI.</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <span class="crumb-muted">Projects</span>
+        <span class="crumb-sep">/</span>
+        <span id="crumb-project">—</span>
+        <span class="crumb-sep">/</span>
+        <span id="crumb-view" class="crumb-active">Overview</span>
+      </div>
+      <div class="topbar-actions">
+        <span class="pill" id="index-pill">—</span>
+        <button class="btn ghost" id="refresh-btn" title="重新加载当前视图"><svg><use href="#i-refresh"/></svg><span>Refresh</span></button>
+      </div>
+    </header>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+
+<aside class="inspector" id="inspector" hidden>
+  <div class="inspector-head">
+    <span class="inspector-kicker">NODE</span>
+    <button class="icon-btn" id="inspector-close" title="关闭"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="inspector-body" id="inspector-body"></div>
+</aside>
+
+<div class="modal" id="token-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="brand-mark small"><svg class="brand-svg"><use href="#i-brand"/></svg></div>
+      <div>
+        <h2>连接本地 Synapse GUI</h2>
+        <p>这个界面只读取本机知识库。每次启动服务器都会生成访问令牌，或由 <code>SYNAPSE_GUI_TOKEN</code> 指定。</p>
+      </div>
+    </div>
+    <label class="field">
+      <span>ACCESS TOKEN</span>
+      <input id="token-input" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴启动终端中输出的令牌" />
+    </label>
+    <div class="modal-actions">
+      <span class="hint" id="token-hint">令牌仅保存在当前浏览器会话（sessionStorage）。</span>
+      <button class="btn primary" id="token-connect">Connect</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
