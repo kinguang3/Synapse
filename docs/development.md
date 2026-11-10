@@ -35,7 +35,7 @@ Python 3.11+。项目使用 hatchling 构建，源码位于 `src/synapse`。
 | `test_boundaries.py` | 重复索引幂等、mtime/size 不变内容变化、Windows 路径大小写、Context 预算、任务重试 |
 | `test_source_consistency.py` | Source 与节点事务一致性、失败回滚 |
 | `test_fts.py` | FTS 损坏时降级与错误 |
-| `test_context.py` | 决策记忆查询不加载全量节点 |
+| `test_context.py` | 决策记忆查询不加载全量节点、查询相关模块、路径去重、六类查询、CLI/MCP query、token 预算 |
 | `test_config.py` | 配置优先级、home/config 路径、CLI 一致性 |
 | `test_text.py` | 文本切分、CJK、搜索查询构造 |
 | `test_mcp_server.py` | MCP 初始化、工具发现、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝、stdout 纯净性 |

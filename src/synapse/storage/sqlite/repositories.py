@@ -719,6 +719,29 @@ class NodeRepository:
         ).fetchall()
         return [_node_from_row(row) for row in rows]
 
+    def modules_for_paths(
+        self,
+        project_id: str,
+        paths: list[str],
+        *,
+        limit: int = 500,
+    ) -> list[KnowledgeNode]:
+        if not paths:
+            return []
+        placeholders = ",".join("?" for _ in paths)
+        rows = self._database.connect().execute(
+            f"""
+            SELECT * FROM nodes
+            WHERE project_id=? AND status='active'
+              AND node_type IN ('class','file','document')
+              AND path IN ({placeholders})
+            ORDER BY path, salience DESC, updated_at DESC, length(content) DESC, title
+            LIMIT ?
+            """,
+            (project_id, *paths, limit),
+        ).fetchall()
+        return [_node_from_row(row) for row in rows]
+
     def counts(self, project_id: str) -> dict[str, int]:
         connection = self._database.connect()
         total = connection.execute(
@@ -915,6 +938,64 @@ class RelationRepository:
                 )
                 deleted += cursor.rowcount
         return deleted
+
+    def path_connection_counts(
+        self,
+        project_id: str,
+        *,
+        exclude_relation_types: tuple[str, ...] = ("CONTAINS",),
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        exclusion = ""
+        exclusion_parameters: list[Any] = []
+        if exclude_relation_types:
+            placeholders = ",".join("?" for _ in exclude_relation_types)
+            exclusion = f" AND relation_type NOT IN ({placeholders})"
+            exclusion_parameters.extend(exclude_relation_types)
+        rows = self._database.connect().execute(
+            f"""
+            WITH edges AS (
+              SELECT from_node_id AS source_id, to_node_id AS target_id,
+                     confidence, weight
+              FROM relations
+              WHERE project_id=?{exclusion}
+              UNION ALL
+              SELECT to_node_id AS source_id, from_node_id AS target_id,
+                     confidence, weight
+              FROM relations
+              WHERE project_id=?{exclusion}
+            )
+            SELECT source.path AS path,
+                   COUNT(DISTINCT target.path) AS neighbor_paths,
+                   SUM(edges.confidence * edges.weight) AS strength
+            FROM nodes source
+            JOIN edges ON edges.source_id = source.id
+            JOIN nodes target ON target.id = edges.target_id
+            WHERE source.project_id=? AND source.status='active'
+              AND source.path IS NOT NULL AND source.path != ''
+              AND target.path IS NOT NULL AND target.path != ''
+              AND target.path != source.path
+            GROUP BY source.path
+            ORDER BY neighbor_paths DESC, strength DESC, source.path ASC
+            LIMIT ?
+            """,
+            (
+                project_id,
+                *exclusion_parameters,
+                project_id,
+                *exclusion_parameters,
+                project_id,
+                limit,
+            ),
+        ).fetchall()
+        return [
+            {
+                "path": str(row["path"]),
+                "neighbor_paths": int(row["neighbor_paths"]),
+                "strength": float(row["strength"]),
+            }
+            for row in rows
+        ]
 
     def counts(self, project_id: str) -> int:
         row = self._database.connect().execute(

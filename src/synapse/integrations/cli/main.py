@@ -374,6 +374,11 @@ def context(
     project: str = typer.Argument(..., help="Project id, slug, or root path."),
     sections: list[str] | None = typer.Option(None, "--section"),
     max_tokens: int = typer.Option(1200, "--max-tokens", min=100, max=20000),
+    query: str | None = typer.Option(
+        None,
+        "--query",
+        help="Rank context modules for a task query.",
+    ),
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Build a compact project context for agents."""
@@ -383,6 +388,7 @@ def context(
                 _project_reference(application, project),
                 sections=sections,
                 max_tokens=max_tokens,
+                query=query,
             )
     except SynapseError as exc:
         _handle_error(exc, as_json)

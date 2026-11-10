@@ -266,6 +266,13 @@ class SynapseTools:
             int,
             Field(ge=100, le=20000, description="Approximate token budget."),
         ] = 1200,
+        query: Annotated[
+            str | None,
+            Field(
+                max_length=500,
+                description="Optional task query used to rank relevant modules.",
+            ),
+        ] = None,
     ) -> dict[str, Any]:
         """Build a compact project context payload for an AI coding agent."""
 
@@ -275,6 +282,7 @@ class SynapseTools:
                 resolved.id,
                 sections=sections,
                 max_tokens=max_tokens,
+                query=query,
             )
 
         return await self._run(operation)

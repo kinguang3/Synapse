@@ -60,11 +60,13 @@ class SearchTools:
         *,
         sections: list[str] | None = None,
         max_tokens: int = 1200,
+        query: str | None = None,
     ) -> dict[str, Any]:
         return self._context.build(
             project,
             sections=sections,
             max_tokens=max_tokens,
+            query=query,
         )
 
     def explore_graph(

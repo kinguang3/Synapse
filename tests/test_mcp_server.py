@@ -122,6 +122,11 @@ def test_mcp_protocol_initialize_list_tools_and_error_mapping(tmp_path: Path) ->
             assert set(memory_get_tool.input_schema["required"]) == {"project", "node_id"}
             assert "full content" in (memory_get_tool.description or "")
 
+            context_tool = next(
+                tool for tool in listed.tools if tool.name == "synapse_context"
+            )
+            assert "query" in context_tool.input_schema["properties"]
+
             empty = await _call(session, "synapse_projects_list")
             assert empty == {"projects": []}
 
@@ -212,10 +217,17 @@ def test_mcp_business_mapping_and_memory_persistence(tmp_path: Path) -> None:
             context = await _call(
                 session,
                 "synapse_context",
-                {"project": project_id, "max_tokens": 800},
+                {
+                    "project": project_id,
+                    "max_tokens": 800,
+                    "query": "build_widget",
+                },
             )
             assert context["project"]["id"] == project_id
             assert context["stats"]["nodes"] >= 2
+            assert any(
+                item["path"] == "app.py" for item in context["top_modules"]
+            )
 
             memory_content = (
                 "Synapse stores retrieval metadata in SQLite FTS5. "

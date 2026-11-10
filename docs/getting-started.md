@@ -83,10 +83,11 @@ synapse recall "FTS5"
 
 ```powershell
 synapse context . --max-tokens 1200
+synapse context . --query "retrieval 模块" --max-tokens 700
 synapse context . --section tech_stack --section decisions --json
 ```
 
-Context 会返回项目、统计、技术栈、重要模块、决策与最近变更。超过 token 预算时会裁剪可选列表并标记 `truncated=true`。
+Context 会返回项目、统计、技术栈、重要模块、决策与最近变更。提供 `--query` 时优先返回与任务相关的模块；不提供时返回项目概览。超过 token 预算时会裁剪可选列表并标记 `truncated=true`。
 
 ## 8. 重新索引
 

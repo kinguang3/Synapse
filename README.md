@@ -15,7 +15,7 @@ Synapse is a local-first code and knowledge association engine. It stores projec
 
 `semantic` mode is not true vector semantic retrieval; it returns `degraded=["semantic_unavailable"]` and falls back to lexical retrieval.
 
-Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; `synapse_context` has skewed module coverage; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md), the [Phase 2.1.1 report](docs/phase-2.1.1-report.md), and the [Phase 2.2.1 report](docs/phase-2.2.1-report.md).
+Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md), the [Phase 2.1.1 report](docs/phase-2.1.1-report.md), the [Phase 2.2.1 report](docs/phase-2.2.1-report.md), and the [Phase 2.2.2 report](docs/phase-2.2.2-report.md).
 
 ## Features
 
@@ -23,7 +23,7 @@ Known limitations: `synapse_recall` returns summaries and snippets, so callers m
 - File-level node fallback for other common text formats.
 - SQLite + FTS5 full-text search, including Chinese unigram/bigram indexing.
 - Code reference resolution, cross-file relationships, and graph-expanded retrieval.
-- Project context compression that trims optional sections to a token budget.
+- Query-aware project context that ranks relevant modules, covers distinct paths, and trims optional sections to a token budget.
 - Explicit memory types: `fact`, `experience`, `decision`, `preference`, and `summary`.
 - Project-level FileLock to prevent concurrent indexing of the same project.
 - After a process crash, interrupted index runs are marked, unfinished tasks are cancelled, and the next scan safely rebuilds.
@@ -66,6 +66,7 @@ Search and build context:
 ```powershell
 synapse search "ContextBuilder" --limit 5
 synapse context . --max-tokens 1200
+synapse context . --query "retrieval module" --max-tokens 700
 ```
 
 Store and recall explicit memories:
@@ -89,7 +90,7 @@ synapse related <node_id>
 synapse explore <node_id> [--depth N] [--direction outgoing|incoming|both]
 synapse remember <project> <content> [--type TYPE] [--title TITLE] [--tag TAG]
 synapse recall <query> [--project REF]
-synapse context <project> [--max-tokens N] [--section SECTION]
+synapse context <project> [--max-tokens N] [--section SECTION] [--query QUERY]
 synapse config show
 synapse config init
 synapse doctor

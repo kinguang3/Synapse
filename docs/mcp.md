@@ -65,7 +65,7 @@ Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信�
 | `synapse_search` | 搜索代码、文档和记忆 | `project`、`query`、`limit`、`mode`、`node_types`、`path_prefix`、`graph_depth`、`relation_types` |
 | `synapse_related` | 查看节点直接关系 | `project`、`node_id`、`limit`、`relation_types`、`include` |
 | `synapse_explore_graph` | 从节点扩展知识图谱 | `project`、`node_id`、`depth`、`direction`、`relation_types`、`limit` |
-| `synapse_context` | 构建项目上下文 | `project`、`sections`、`max_tokens` |
+| `synapse_context` | 构建项目上下文 | `project`、`sections`、`max_tokens`、`query` |
 | `synapse_remember` | 写入显式长期记忆 | `project`、`content`、`title`、`memory_type`、`tags`、`confidence`、`idempotency_key` |
 | `synapse_recall` | 召回显式记忆，返回 `summary` 和 `snippet` | `project`、`query`、`limit`、`mode` |
 | `synapse_memory_get` | 按 `node_id` 读取完整记忆正文和元数据 | `project`、`node_id` |
@@ -80,6 +80,10 @@ Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信�
 
 `synapse_memory_get` 返回 `node_id`、`node_type`、`memory_type`、`title`、`content`、`summary`、`tags`、`provenance`、`confidence`、`salience`、`created_at` 和 `updated_at`。`tags` 恢复为数组；项目或节点不存在、节点不属于指定项目、节点不是 `memory`/`note` 时返回稳定业务错误。
 
+### 上下文选择
+
+`synapse_context` 不传 `query` 时返回项目级概览，按跨模块图连接选择不同路径的代表模块。传入 `query` 时，先复用检索结果选出相关路径，再用结构连接补足模块；每个路径最多出现一次，`top_modules[].reason` 标记 `query_match`、`cross_module_links` 或 `salience`。中文问题中夹带代码标识符时，会退回到标识符查询。
+
 ### 范围与默认值
 
 - `synapse_search.limit`：1-50，默认 10。
@@ -89,6 +93,7 @@ Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信�
 - `synapse_explore_graph.depth`：0-3，默认 2。
 - `synapse_explore_graph.limit`：1-200，默认 50。
 - `synapse_context.max_tokens`：100-20000，默认 1200。
+- `synapse_context.query`：可选，最多 500 字符；提供后优先选择与任务相关的模块，而不是只按静态 salience 排序。
 - `synapse_remember.content`：最多 200,000 字符。
 - `synapse_remember.title`：最多 120 字符。
 - `synapse_remember.confidence`：0-1。
@@ -124,7 +129,7 @@ Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信�
 
 测试覆盖初始化、`tools/list`、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝和 stdout 纯净性。
 
-Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现和 A-F 场景调用，详见 `docs/phase-2.1.1-report.md`。Phase 2.2.1 新增 `synapse_memory_get`，并在真实 Trae 中验证召回后读取完整正文，详见 `docs/phase-2.2.1-report.md`。
+Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现和 A-F 场景调用，详见 `docs/phase-2.1.1-report.md`。Phase 2.2.1 新增 `synapse_memory_get`，并在真实 Trae 中验证召回后读取完整正文，详见 `docs/phase-2.2.1-report.md`。Phase 2.2.2 在真实 Trae 中验证 9 个工具、query-aware context、overview 结构选择和 token 预算裁剪，详见 `docs/phase-2.2.2-report.md`。
 
 ## 当前限制
 
@@ -132,5 +137,5 @@ Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现�
 - 不提供语义/向量检索。
 - 不提供 MCP resources 或 prompts；当前只暴露 tools。
 - `synapse_recall` 仍只返回 `summary`、`snippet` 等检索字段；需要完整正文时必须再调用 `synapse_memory_get`。`summary` 在写入时截取前 300 字符，不应当作为长记忆正文使用。
-- `synapse_context` 在较小 `max_tokens` 下可能优先返回 Repository 层，`decisions`、`recent_changes` 可能为空。
+- `synapse_context` 的 `query` 选择仍基于词法/图关系；纯中文且不含代码标识符的问题可能退回项目概览。较小 `max_tokens` 下 `decisions`、`recent_changes` 仍可能被裁剪。
 - 图模型主要覆盖 `CALLS`、`IMPORTS`、`CONTAINS` 等关系，构造函数参数注入需要结合源码核对。

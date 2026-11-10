@@ -108,6 +108,8 @@ memory_get(node_id, project)
 
 `ContextBuilder` 读取项目统计、技术栈、重要模块、决策记忆和最近变更，并按 `max_tokens` 裁剪可选列表。裁剪后如果仍有可裁剪内容，结果会带 `truncated=true`。项目与统计字段属于必要信息，始终保留。
 
+`top_modules` 以路径为模块边界：没有 `query` 时，按跨模块图连接数选择不同路径的代表节点；传入 `query` 时，先复用 `RetrievalService` 的搜索结果选出相关路径，再用结构连接补足。每个路径只保留一个代表节点，`reason` 标记 `query_match`、`cross_module_links` 或 `salience`。查询模式优先保留相关模块，`recent_changes` 使用文件 mtime 并优先选择相关路径。
+
 ## MCP Server
 
 ```text

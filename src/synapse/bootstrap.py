@@ -106,6 +106,7 @@ def build_application(settings: Settings | None = None) -> Application:
         nodes=nodes,
         relations=relations,
         sources=sources,
+        retrieval=retrieval,
     )
     project_tools = ProjectTools(
         projects=projects,

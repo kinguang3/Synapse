@@ -104,12 +104,13 @@ synapse recall <query> [--project REF] [--limit N] [--mode MODE] [--json]
 ## context
 
 ```powershell
-synapse context <project> [--section NAME] [--max-tokens N] [--json]
+synapse context <project> [--section NAME] [--max-tokens N] [--query QUERY] [--json]
 ```
 
 - `--max-tokens`：100-20000，默认 1200。
 - `--section` 可重复：`tech_stack`、`top_modules`、`decisions`、`recent_changes` 等。
-- 超出预算时可选列表会被裁剪，输出 `truncated=true`。
+- `--query`：按任务问题选择相关模块；省略时返回项目概览。
+- 超出预算时可选列表会被裁剪，输出 `truncated=true`；`top_modules[].reason` 记录选择原因。
 
 ## config
 

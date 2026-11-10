@@ -15,7 +15,7 @@ Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存�
 
 `semantic` 模式目前不是真正的语义向量检索；它会返回 `degraded=["semantic_unavailable"]` 并退回词法检索。
 
-已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；`synapse_context` 的模块覆盖存在偏斜；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/limitations.md)、[Phase 2.1.1 报告](docs/phase-2.1.1-report.md) 和 [Phase 2.2.1 报告](docs/phase-2.2.1-report.md)。
+已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/limitations.md)、[Phase 2.1.1 报告](docs/phase-2.1.1-report.md)、[Phase 2.2.1 报告](docs/phase-2.2.1-report.md) 和 [Phase 2.2.2 报告](docs/phase-2.2.2-report.md)。
 
 ## 功能
 
@@ -23,7 +23,7 @@ Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存�
 - 其他常见文本格式以文件级节点兜底。
 - SQLite + FTS5 全文检索，支持中文 unigram/bigram。
 - 代码引用解析、跨文件关系、图扩展检索。
-- 项目上下文压缩，按 token 预算裁剪可选部分。
+- 查询感知的项目上下文：优先选择相关模块、覆盖不同路径，并按 token 预算裁剪可选部分。
 - 显式记忆：`fact`、`experience`、`decision`、`preference`、`summary`。
 - 项目级 FileLock，避免同一项目被多个进程同时索引。
 - 进程崩溃后会标记中断的索引运行、取消未完成任务，并由下一次扫描安全重建。
@@ -66,6 +66,7 @@ synapse projects status
 ```powershell
 synapse search "ContextBuilder" --limit 5
 synapse context . --max-tokens 1200
+synapse context . --query "retrieval 模块" --max-tokens 700
 ```
 
 存储和召回显式记忆：
@@ -89,7 +90,7 @@ synapse related <node_id>
 synapse explore <node_id> [--depth N] [--direction outgoing|incoming|both]
 synapse remember <project> <content> [--type TYPE] [--title TITLE] [--tag TAG]
 synapse recall <query> [--project REF]
-synapse context <project> [--max-tokens N] [--section SECTION]
+synapse context <project> [--max-tokens N] [--section SECTION] [--query QUERY]
 synapse config show
 synapse config init
 synapse doctor
