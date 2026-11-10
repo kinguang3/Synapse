@@ -11,6 +11,8 @@ htmlcov/
 dist/
 build/
 .synapse/
+.screenshots/
+.tmp*/
 *.db
 *.db-wal
 *.db-shm
