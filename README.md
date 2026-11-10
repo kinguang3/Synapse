@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-Synapse is a local-first code and knowledge association engine. It stores projects, source code, documentation, explicit memories, and their relationships in SQLite, giving AI agents searchable and explainable local context.
+Synapse is a local-first MCP service that gives AI coding agents a structured code knowledge graph, project context retrieval, and persistent project memory. It stores projects, source code, documentation, explicit memories, and their relationships in SQLite, and exposes the same knowledge through MCP, CLI, and a local GUI.
 
 ## Status
 
@@ -10,10 +10,14 @@ Synapse is a local-first code and knowledge association engine. It stores projec
 - Phase 1.5: configuration, project-level index locking, FTS fallback, Source/node transaction consistency, crash recovery, boundary tests, documentation, and benchmarks.
 - Phase 2.1: a local stdio MCP Server with 8 project-scoped retrieval and memory tools.
 - Phase 2.1.1: discovery of all 8 tools and A-F E2E validation in a real Trae session.
-- Phase 2.2.1: `synapse_memory_get` retrieves the full content and metadata of a recalled memory.
-- Not yet implemented: HTTP API, file watching, and embedding/vector retrieval.
+- Phase 2.2.1: `synapse_memory_get` retrieves the full content and metadata of a recalled memory, bringing the MCP tool count to 9.
+- Phase 2.2.2: query-aware context module selection, structural overview, path deduplication, and token-budget trimming.
+- Phase 3.0: knowledge-graph GUI architecture design completed.
+- Phase 3.1: read-only local GUI API and static knowledge workspace (Overview, Knowledge Graph, Search, Memory, Context, Indexing), reusing the same Core and SQLite database.
+- Capability boundaries are aligned: MCP, CLI, and GUI expose only `keyword` / `hybrid` retrieval; `synapse memory-get` completes the CLI memory loop.
+- Not yet implemented: file watching, embedding/vector retrieval, memory editing/versioning, and cloud sync.
 
-`semantic` mode is not true vector semantic retrieval; it returns `degraded=["semantic_unavailable"]` and falls back to lexical retrieval.
+`semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
 
 Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md), the [Phase 2.1.1 report](docs/phase-2.1.1-report.md), the [Phase 2.2.1 report](docs/phase-2.2.1-report.md), and the [Phase 2.2.2 report](docs/phase-2.2.2-report.md).
 
@@ -30,6 +34,7 @@ Known limitations: `synapse_recall` returns summaries and snippets, so callers m
 - Local stdio MCP Server that reuses the same Core, configuration, and data directory.
 - MCP exposes only `keyword` / `hybrid` retrieval by default, rather than presenting unavailable semantic retrieval as implemented.
 - MCP tools enforce project scope and validate node ownership to prevent cross-project reads.
+- Local GUI workspace for graph exploration, search, memory inspection, context preview, and index status/trigger; it talks to the same Core and never opens SQLite directly.
 
 ## Requirements
 
@@ -85,11 +90,12 @@ synapse projects list
 synapse projects register <path> [--name NAME] [--index]
 synapse projects status [reference]
 synapse index [reference] [--full] [--workers N]
-synapse search <query> [--project REF] [--limit N] [--mode keyword|hybrid|semantic]
+synapse search <query> [--project REF] [--limit N] [--mode keyword|hybrid]
 synapse related <node_id>
 synapse explore <node_id> [--depth N] [--direction outgoing|incoming|both]
 synapse remember <project> <content> [--type TYPE] [--title TITLE] [--tag TAG]
 synapse recall <query> [--project REF]
+synapse memory-get <node_id> [--project REF]
 synapse context <project> [--max-tokens N] [--section SECTION] [--query QUERY]
 synapse config show
 synapse config init
@@ -136,6 +142,21 @@ Available tools:
 
 All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/mcp.md).
 
+## GUI
+
+A local knowledge workspace for developers is included as an optional extra:
+
+```powershell
+python -m pip install -e ".[gui]"
+python -m synapse.integrations.gui --port 8765
+```
+
+Open `http://127.0.0.1:8765/` and connect with the access token printed by the server, or set `SYNAPSE_GUI_TOKEN` before starting it. The GUI reads the same `<home>/synapse.db` as MCP and CLI and never opens SQLite directly.
+
+- Pages: Overview, Knowledge Graph, Search, Memory, Context, Indexing.
+- Knowledge edits are not implemented yet; the Indexing page can start an index run through the same Core and project-level lock.
+- Requests require a local bearer token and pass Host/Origin checks.
+
 ## Data location
 
 The default directory is determined by `platformdirs`:
@@ -163,6 +184,9 @@ The detailed documentation is currently written in Chinese:
 - [Phase 2.1 report](docs/phase-2.1-report.md)
 - [Phase 2.1.1 real Trae E2E report](docs/phase-2.1.1-report.md)
 - [Phase 2.2.1 memory retrieval report](docs/phase-2.2.1-report.md)
+- [Phase 2.2.2 context quality report](docs/phase-2.2.2-report.md)
+- [Phase 3.0 GUI architecture design](docs/phase-3.0-architecture.md)
+- [Product positioning and architecture review](docs/product/synapse-product-positioning.md)
 
 ## Development
 

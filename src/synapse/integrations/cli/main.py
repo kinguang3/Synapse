@@ -22,7 +22,7 @@ from synapse.integrations.cli.output import (
 )
 
 app = typer.Typer(
-    help="Local-first knowledge memory and association engine for AI agents.",
+    help="Local-first code knowledge graph, context and project memory for AI agents.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -198,7 +198,7 @@ def search(
     query: str = typer.Argument(..., help="Search query."),
     project: str | None = typer.Option(None, "--project", "-p", help="Project id or slug."),
     limit: int = typer.Option(10, "--limit", "-l", min=1, max=50),
-    mode: str = typer.Option("hybrid", "--mode", help="keyword, hybrid, or semantic."),
+    mode: str = typer.Option("hybrid", "--mode", help="keyword or hybrid."),
     node_types: list[str] | None = typer.Option(None, "--type", help="Node type filter."),
     path_prefix: str | None = typer.Option(None, "--path-prefix", help="Path prefix filter."),
     graph_depth: int | None = typer.Option(None, "--graph-depth", min=0, max=3),
@@ -208,6 +208,12 @@ def search(
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Search knowledge with keyword + graph ranking."""
+    if mode.lower() not in {"keyword", "hybrid"}:
+        _handle_error(
+            InvalidArgument(f"未知检索模式: {mode}，只支持 keyword 或 hybrid"),
+            as_json,
+        )
+        return
     try:
         with build_application() as application:
             reference = (
@@ -345,10 +351,16 @@ def recall(
     query: str = typer.Argument(..., help="Memory search query."),
     project: str | None = typer.Option(None, "--project", "-p"),
     limit: int = typer.Option(10, "--limit", "-l", min=1, max=50),
-    mode: str = typer.Option("hybrid", "--mode"),
+    mode: str = typer.Option("hybrid", "--mode", help="keyword or hybrid."),
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Recall explicit memories."""
+    if mode.lower() not in {"keyword", "hybrid"}:
+        _handle_error(
+            InvalidArgument(f"未知检索模式: {mode}，只支持 keyword 或 hybrid"),
+            as_json,
+        )
+        return
     try:
         with build_application() as application:
             reference = (
@@ -367,6 +379,32 @@ def recall(
         emit_json(payload)
     else:
         print_search(payload)
+
+
+@app.command("memory-get")
+def memory_get(
+    node_id: str = typer.Argument(..., help="Memory node id returned by recall."),
+    project: str | None = typer.Option(
+        None, "--project", "-p", help="Project id, slug, or root path."
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Read the full content and metadata of one memory node."""
+    try:
+        with build_application() as application:
+            reference = _project_reference(application, project)
+            payload = application.memory_tools.get(node_id, project=reference)
+    except SynapseError as exc:
+        _handle_error(exc, as_json)
+        return
+    if as_json:
+        emit_json(payload)
+        return
+    console.print(f"[bold]{payload['title']}[/bold] ({payload['memory_type']})")
+    console.print(f"[dim]{payload['node_id']}[/dim]")
+    console.print(payload["content"])
+    if payload.get("tags"):
+        console.print(f"[dim]tags: {' '.join(payload['tags'])}[/dim]")
 
 
 @app.command()

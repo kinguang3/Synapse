@@ -5,9 +5,9 @@ Synapse 采用分层结构，目标是让 CLI、脚本和 MCP 接口复用同一
 ## 分层
 
 ```text
-integrations/cli        integrations/mcp
-        \                   /
-         -> tools
+integrations/cli        integrations/mcp        integrations/gui
+        \                   |                       /
+         -> tools -------------------------------
              -> ingestion / retrieval / context / knowledge
                  -> domain
                  -> ports
@@ -138,11 +138,33 @@ MCP Client
 - 数据库写入：事务串行化，WAL 模式降低读写阻塞。
 - MCP：每个 Server 进程将 Core 调用串行到自己的单线程 executor；不与其他进程共享连接。
 
+## GUI API
+
+```text
+static SPA（index.html / app.js / styles.css）
+  -> 127.0.0.1 FastAPI（Bearer Token + Host/Origin 校验）
+  -> CoreWorker（单线程串行调用）
+  -> query_service 适配层
+  -> build_application() / Tools / Services / Repositories
+  -> 同一个 SQLite + FTS5 数据库
+```
+
+- 入口：`python -m synapse.integrations.gui --port 8765`（可选 `gui` extra）。
+- 只读端点：projects、status、overview、search、graph/overview、nodes、graph/neighbors、memories、memories/{id}、context。
+- 写操作：仅 `POST /projects/{id}/index` 触发一次索引，复用 `ProjectTools.index()` 与项目级 FileLock。
+- 前端为无构建静态 SPA，由 FastAPI 直接托管；不引入 Node 构建链。
+- 适配层负责参数校验、项目隔离、错误映射和响应整形；不写 SQL，不复制索引/检索/记忆业务。
+- 记忆列表通过 `MemoryTools.list()` 进入 Core，节点与图谱读取仍由适配层调用 Repository 完成。
+- 未实现：记忆编辑、删除与版本历史、完整分页、索引历史页面。
+
 ## 演化方向
 
 Phase 2 按以下顺序推进，且必须复用当前 Core：
 
 1. MCP Server：已完成 Phase 2.1。
-2. 本地图谱/HTTP API。
+2. 本地 GUI API 与知识工作台：已完成 Phase 3.1（只读 + 索引触发）。
 3. 文件监听。
 4. Embedding/向量检索。
+
+GUI 继续复用当前 Core 与 SQLite Schema；记忆编辑、删除和版本管理需要在后续阶段以加法能力实现。
+- 设计详情见 [Phase 3.0 GUI 架构设计](phase-3.0-architecture.md)。

@@ -166,14 +166,13 @@ class SynapseTools:
 
         def operation(app: Application) -> dict[str, Any]:
             resolved = app.projects.resolve(project)
-            prefix = _validate_path_prefix(path_prefix)
             return app.search_tools.search(
                 query,
                 project=resolved.id,
                 limit=limit,
                 mode=mode,
                 node_types=node_types,
-                path_prefix=prefix,
+                path_prefix=path_prefix,
                 graph_depth=graph_depth,
                 relation_types=relation_types,
             )
@@ -393,19 +392,6 @@ def _error_payload(exc: SynapseError) -> str:
     return json.dumps(exc.to_dict(), ensure_ascii=False)
 
 
-def _validate_path_prefix(path_prefix: str | None) -> str | None:
-    if path_prefix is None:
-        return None
-    normalized = path_prefix.replace("\\", "/").strip()
-    if not normalized:
-        return None
-    if normalized.startswith("/") or (len(normalized) > 1 and normalized[1] == ":"):
-        raise InvalidArgument("path_prefix 必须是项目内相对路径前缀")
-    if any(part == ".." for part in normalized.split("/")):
-        raise InvalidArgument("path_prefix 不得包含 '..'")
-    return normalized
-
-
 def _resolve_project_node(
     app: Application,
     project_reference: str,
@@ -436,7 +422,8 @@ def create_server(runtime: McpRuntime) -> MCPServer[Application]:
         name="synapse",
         title="Synapse Knowledge & Memory",
         description=(
-            "Local-first code knowledge graph and long-term memory for AI coding agents."
+            "Local-first MCP service for code knowledge graphs, project context "
+            "and persistent project memory."
         ),
         instructions=(
             "Call synapse_projects_list first to discover registered projects. "

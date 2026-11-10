@@ -74,6 +74,69 @@ class MemoryTools:
             node_types=[NodeType.MEMORY.value, NodeType.NOTE.value],
         )
 
+    def list(
+        self,
+        project_reference: str,
+        *,
+        memory_type: str | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        project = self._projects.resolve(project_reference)
+        if memory_type is not None:
+            try:
+                MemoryType(memory_type)
+            except ValueError as exc:
+                raise InvalidArgument(f"未知记忆类型: {memory_type}") from exc
+        limit = max(1, min(limit, 200))
+        offset = max(0, offset)
+        window = offset + limit
+
+        meta: dict[str, Any] = {}
+        if query and query.strip():
+            result = self._retrieval.search(
+                query.strip(),
+                project_reference=project.id,
+                limit=min(window, 50),
+                mode="hybrid",
+                node_types=[NodeType.MEMORY.value],
+            )
+            nodes = [
+                node
+                for node in (
+                    self._nodes.get(item["node_id"]) for item in result["results"]
+                )
+                if node is not None
+            ]
+            meta = dict(result.get("meta") or {})
+            total = len(nodes)
+        else:
+            nodes = self._nodes.memories(project.id, limit=window)
+            total = int(
+                self._nodes.counts(project.id).get(NodeType.MEMORY.value, 0)
+            )
+
+        if memory_type:
+            nodes = [
+                node
+                for node in nodes
+                if node.memory_type is not None
+                and node.memory_type.value == memory_type
+            ]
+            total = len(nodes)
+
+        page = nodes[offset : offset + limit]
+        return {
+            "project_id": project.id,
+            "memories": [self._memory_brief_payload(node) for node in page],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "query": query.strip() if query and query.strip() else None,
+            "meta": meta,
+        }
+
     def get(self, node_id: str, *, project: str | None = None) -> dict[str, Any]:
         node = self._nodes.get(node_id)
         if node is None:
@@ -91,6 +154,20 @@ class MemoryTools:
                 details={"node_id": node_id, "node_type": node.node_type.value},
             )
         return self._memory_detail_payload(node)
+
+    def _memory_brief_payload(self, node: Any) -> dict[str, Any]:
+        return {
+            "node_id": node.id,
+            "node_type": node.node_type.value,
+            "memory_type": node.memory_type.value if node.memory_type else None,
+            "title": node.title,
+            "summary": node.summary,
+            "tags": _node_tags(node),
+            "confidence": node.confidence,
+            "salience": node.salience,
+            "created_at": node.created_at,
+            "updated_at": node.updated_at,
+        }
 
     def _node_payload(self, node: Any) -> dict[str, Any]:
         return {

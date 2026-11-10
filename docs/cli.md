@@ -57,14 +57,14 @@ synapse search <query> [options]
 | --- | --- |
 | `--project`, `-p` | 项目 ID、slug 或根路径 |
 | `--limit`, `-l` | 1-50，默认 10 |
-| `--mode` | `keyword`、`hybrid`、`semantic` |
+| `--mode` | `keyword` 或 `hybrid`，默认 `hybrid` |
 | `--type` | 节点类型，可重复 |
-| `--path-prefix` | 路径前缀 |
+| `--path-prefix` | 项目内相对路径前缀 |
 | `--graph-depth` | 0-3 |
 | `--relation` | 关系类型，可重复 |
 | `--json` | 输出 JSON |
 
-`semantic` 当前返回 `degraded=["semantic_unavailable"]`，使用词法结果。
+`semantic` 不是真正的向量检索，也不由 CLI 暴露；传入其他模式会返回 `INVALID_ARGUMENT`。
 
 ## related
 
@@ -96,10 +96,18 @@ synapse remember <project> <content> [--title TITLE] [--type TYPE] [--tag TAG] [
 ## recall
 
 ```powershell
-synapse recall <query> [--project REF] [--limit N] [--mode MODE] [--json]
+synapse recall <query> [--project REF] [--limit N] [--mode keyword|hybrid] [--json]
 ```
 
-只返回显式记忆节点。
+只返回显式记忆节点，包含 `summary` 与 `snippet`。
+
+## memory-get
+
+```powershell
+synapse memory-get <node_id> [--project REF] [--json]
+```
+
+按 `node_id` 读取单条记忆的完整正文、tags、类型、provenance 和时间戳。通常先用 `recall` 拿到 `node_id`。
 
 ## context
 

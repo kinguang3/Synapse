@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存项目、源码、文档、显式记忆和它们之间的关系，为 AI Agent 提供可检索、可解释的本地上下文。
+Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构化的代码知识图谱、项目上下文检索和持久化项目记忆。它用 SQLite 保存项目、源码、文档、显式记忆和它们之间的关系，并通过 MCP、CLI 和本地 GUI 暴露同一份知识。
 
 ## 当前状态
 
@@ -10,10 +10,14 @@ Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存�
 - Phase 1.5：完成配置、项目级索引锁、FTS 降级、Source/节点事务一致性、崩溃恢复、边界测试、文档与 Benchmark。
 - Phase 2.1：完成本地 stdio MCP Server，提供 8 个项目范围的检索与记忆工具。
 - Phase 2.1.1：在真实 Trae 中完成 8 工具发现和 A-F E2E 调用验证。
-- Phase 2.2.1：新增 `synapse_memory_get`，按 `node_id` 读取完整记忆正文和元数据。
-- 尚未实现：HTTP API、文件监听、Embedding/向量检索。
+- Phase 2.2.1：新增 `synapse_memory_get`，按 `node_id` 读取完整记忆正文和元数据，MCP 工具总数达到 9 个。
+- Phase 2.2.2：完成 query-aware 上下文模块选择、结构化 overview、路径去重和 token 预算裁剪。
+- Phase 3.0：完成知识图谱 GUI 架构设计。
+- Phase 3.1：完成本地只读 GUI API 与静态知识工作台（Overview、Knowledge Graph、Search、Memory、Context、Indexing），复用同一套 Core 与同一个 SQLite 知识库。
+- 能力口径已对齐：MCP、CLI 与 GUI 只暴露 `keyword` / `hybrid` 检索；CLI 新增 `synapse memory-get` 补齐记忆读取闭环。
+- 尚未实现：文件监听、Embedding/向量检索、记忆编辑/版本管理、云同步。
 
-`semantic` 模式目前不是真正的语义向量检索；它会返回 `degraded=["semantic_unavailable"]` 并退回词法检索。
+`semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
 
 已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/limitations.md)、[Phase 2.1.1 报告](docs/phase-2.1.1-report.md)、[Phase 2.2.1 报告](docs/phase-2.2.1-report.md) 和 [Phase 2.2.2 报告](docs/phase-2.2.2-report.md)。
 
@@ -30,6 +34,7 @@ Synapse 是一个本地优先的代码与知识关联引擎，用 SQLite 保存�
 - 本地 stdio MCP Server，复用同一套 Core、配置和数据目录。
 - MCP 默认只暴露 `keyword` / `hybrid` 检索，不把不可用的语义检索伪装成已实现能力。
 - MCP 工具强制项目范围，并校验节点归属，避免跨项目读取。
+- 本地 GUI 工作台：图谱探索、检索、记忆查看、上下文预览和索引状态/触发；直接复用 Core，不直连 SQLite。
 
 ## 环境要求
 
@@ -85,11 +90,12 @@ synapse projects list
 synapse projects register <path> [--name NAME] [--index]
 synapse projects status [reference]
 synapse index [reference] [--full] [--workers N]
-synapse search <query> [--project REF] [--limit N] [--mode keyword|hybrid|semantic]
+synapse search <query> [--project REF] [--limit N] [--mode keyword|hybrid]
 synapse related <node_id>
 synapse explore <node_id> [--depth N] [--direction outgoing|incoming|both]
 synapse remember <project> <content> [--type TYPE] [--title TITLE] [--tag TAG]
 synapse recall <query> [--project REF]
+synapse memory-get <node_id> [--project REF]
 synapse context <project> [--max-tokens N] [--section SECTION] [--query QUERY]
 synapse config show
 synapse config init
@@ -134,7 +140,22 @@ python -m synapse.integrations.mcp
 - `synapse_recall`
 - `synapse_memory_get`
 
-所有项目级工具都必须传入已注册项目。`synapse_remember` 会写入本地 SQLite；其余工具为只读。先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 和 `node_id` 读取完整正文与 tags。stdout 只承载 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/mcp.md)。
+所有项目级工具都必须传已注册项目。`synapse_remember` 会写入本地 SQLite，其他工具只读。推荐先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 读取完整正文和 tags。stdout 只输出 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/mcp.md)。
+
+## GUI
+
+安装可选 `gui` extra 后启动本地知识工作台：
+
+```powershell
+python -m pip install -e ".[gui]"
+python -m synapse.integrations.gui --port 8765
+```
+
+打开 `http://127.0.0.1:8765/`，使用启动时打印的访问令牌连接，或提前设置 `SYNAPSE_GUI_TOKEN`。GUI 读取与 MCP/CLI 相同的 `<home>/synapse.db`，不直连 SQLite。
+
+- 页面：Overview、Knowledge Graph、Search、Memory、Context、Indexing。
+- 记忆编辑尚未实现；Indexing 页面可以通过同一套 Core 触发一次索引，沿用项目级 FileLock。
+- 请求需要本地 Bearer Token，并经过 Host/Origin 校验。
 
 ## 数据位置
 
@@ -161,6 +182,9 @@ python -m synapse.integrations.mcp
 - [Phase 2.1 报告](docs/phase-2.1-report.md)
 - [Phase 2.1.1 真实 Trae E2E 报告](docs/phase-2.1.1-report.md)
 - [Phase 2.2.1 记忆读取报告](docs/phase-2.2.1-report.md)
+- [Phase 2.2.2 上下文质量报告](docs/phase-2.2.2-report.md)
+- [Phase 3.0 GUI 架构设计](docs/phase-3.0-architecture.md)
+- [产品定位与架构认知报告](docs/product/synapse-product-positioning.md)
 
 ## 开发
 

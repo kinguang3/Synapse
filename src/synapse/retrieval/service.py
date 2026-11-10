@@ -7,6 +7,7 @@ from typing import Any
 from synapse.config import Settings
 from synapse.core.clock import utc_now
 from synapse.core.text import build_fts_query, normalize_qualified_name
+from synapse.core.validation import normalize_path_prefix
 from synapse.domain.enums import NodeType, RelationType
 from synapse.domain.models import KnowledgeNode
 from synapse.errors import IndexUnavailable, InvalidArgument, NodeNotFound
@@ -74,10 +75,10 @@ class RetrievalService:
         project_id = self._project_id(project_reference)
         node_type_values = self._node_types(node_types)
         relation_type_values = self._relation_types(relation_types)
-        path_prefix = path_prefix.replace("\\", "/") if path_prefix else None
+        path_prefix = normalize_path_prefix(path_prefix)
 
         degraded: list[str] = []
-        if mode in {"hybrid", "semantic"}:
+        if mode == "semantic":
             degraded.append("semantic_unavailable")
 
         candidates: dict[str, Candidate] = {}

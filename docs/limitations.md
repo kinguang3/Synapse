@@ -3,7 +3,7 @@
 ## 检索
 
 - `hybrid` 是词法检索 + 图扩展 + 评分，不是向量混合检索。
-- `semantic` 当前不可用，会返回 `degraded=["semantic_unavailable"]` 并退回词法结果。
+- `semantic` 不是真正的向量语义检索；MCP、CLI 与 GUI 都不再暴露它，检索服务仅保留内部降级分支。
 - 没有 Embedding、向量数据库或远程模型调用。
 - 中文使用 unigram/bigram FTS，不等同于语言级分词。
 
@@ -63,10 +63,18 @@
 - 图模型主要覆盖 `CALLS`、`IMPORTS`、`CONTAINS` 等关系；构造函数参数注入不会自动成为图边，需要结合源码核对。
 - Core 调用在单个 worker 线程上串行执行；一个 MCP 进程内的并发请求不会并行访问数据库。
 - 进程退出时关闭 `Application`；外部 Client 负责重启崩溃或退出的 Server。
-- 已在真实 Trae CN `3.4.16` 中通过对话界面验证 8 个 MCP 工具的发现和 A-F 调用；Phase 2.2.1 的 `synapse_memory_get` 另行验证。
+- 已在真实 Trae CN `3.4.16` 中通过对话界面验证 9 个 MCP 工具的发现和 A-F 调用；Phase 2.2.1 的 `synapse_memory_get` 和 Phase 2.2.2 的 query-aware context 已纳入验证。
+
+## GUI
+
+- 仅监听 `127.0.0.1`；请求需要本地 Bearer Token，并校验 Host/Origin。
+- 当前是以查看为主的工作台：可触发一次索引，但不能编辑或删除记忆。
+- 只有记忆列表支持 `offset` / `limit`；其他接口没有完整分页。
+- 不支持全图加载、实时推送或后台索引队列；索引请求在 Core worker 中同步执行，重复请求会因项目锁返回 `423`。
+- 前端是无构建静态 SPA，由 FastAPI 托管，不依赖 Node 构建链。
 
 ## 平台
 
 - 当前主要开发和验证环境是 Windows + Python 3.12。
 - 声明支持 Python 3.11+，但其他平台需要单独运行测试。
-- 未提供 HTTP API、IDE 插件或 Web UI。
+- 未提供 IDE 插件；Web UI 为可选的本地 GUI（`gui` extra）。
