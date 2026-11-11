@@ -19,7 +19,7 @@ Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构�
 
 `semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
 
-已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/limitations.md)、[Phase 2.1.1 报告](docs/phase-2.1.1-report.md)、[Phase 2.2.1 报告](docs/phase-2.2.1-report.md) 和 [Phase 2.2.2 报告](docs/phase-2.2.2-report.md)。
+已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md) 以及历史报告 [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md)、[Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md) 和 [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md)。
 
 ## 功能
 
@@ -140,7 +140,7 @@ python -m synapse.integrations.mcp
 - `synapse_recall`
 - `synapse_memory_get`
 
-所有项目级工具都必须传已注册项目。`synapse_remember` 会写入本地 SQLite，其他工具只读。推荐先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 读取完整正文和 tags。stdout 只输出 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/mcp.md)。
+所有项目级工具都必须传已注册项目。`synapse_remember` 会写入本地 SQLite，其他工具只读。推荐先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 读取完整正文和 tags。stdout 只输出 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/reference/mcp.md)。
 
 ## GUI
 
@@ -166,25 +166,22 @@ python -m synapse.integrations.gui --port 8765
 - 数据库：`<home>\synapse.db`
 - 锁文件：`<home>\locks\index-<project_id>.lock`
 
-可以通过 `SYNAPSE_HOME`、`SYNAPSE_CONFIG` 覆盖。详见 [配置文档](docs/configuration.md)。
+可以通过 `SYNAPSE_HOME`、`SYNAPSE_CONFIG` 覆盖。详见 [配置文档](docs/guides/configuration.md)。
 
 ## 文档
 
-- [快速开始](docs/getting-started.md)
-- [架构](docs/architecture.md)
-- [CLI](docs/cli.md)
-- [配置](docs/configuration.md)
-- [数据模型](docs/data-model.md)
-- [MCP Server](docs/mcp.md)
-- [限制与边界](docs/limitations.md)
-- [开发与测试](docs/development.md)
-- [Phase 1.5 报告](docs/phase-1.5-report.md)
-- [Phase 2.1 报告](docs/phase-2.1-report.md)
-- [Phase 2.1.1 真实 Trae E2E 报告](docs/phase-2.1.1-report.md)
-- [Phase 2.2.1 记忆读取报告](docs/phase-2.2.1-report.md)
-- [Phase 2.2.2 上下文质量报告](docs/phase-2.2.2-report.md)
-- [Phase 3.0 GUI 架构设计](docs/phase-3.0-architecture.md)
-- [产品定位与架构认知报告](docs/product/synapse-product-positioning.md)
+从 [文档索引](docs/README.md) 开始阅读。
+
+- [快速开始](docs/guides/getting-started.md)
+- [配置](docs/guides/configuration.md)
+- [开发与测试](docs/guides/development.md)
+- [架构](docs/architecture/overview.md)
+- [CLI](docs/reference/cli.md)
+- [MCP Server](docs/reference/mcp.md)
+- [数据模型](docs/reference/data-model.md)
+- [限制与边界](docs/reference/limitations.md)
+- [GUI 后的技术审计](docs/research/post-gui-technical-audit.md)
+- [历史归档](docs/archive/README.md)
 
 ## 开发
 

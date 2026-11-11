@@ -4,7 +4,7 @@
 > 本轮范围：只读审查、通信方案设计、API/安全/前端设计、架构报告。  
 > 未执行：最小 Spike、页面开发、Schema 修改、Core 重构、真实用户数据或 Trae 配置修改、Git 提交。
 >
-> 后续进展：Phase 3.1 已按本设计实现只读 GUI API、静态知识工作台和索引触发；当前能力见 [架构](architecture.md) 与 [限制与边界](limitations.md)。
+> 后续进展：Phase 3.1 已按本设计实现只读 GUI API、静态知识工作台和索引触发；当前能力见 [架构](../../architecture/overview.md) 与 [限制与边界](../../reference/limitations.md)。
 
 ## 0. 结论摘要
 

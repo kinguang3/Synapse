@@ -117,7 +117,7 @@ synapse index . --workers 8     # 调整解析并发
 }
 ```
 
-先调用 `synapse_projects_list` 获取项目 ID 或 slug，再调用其他项目级工具。`synapse_remember` 会写入本地记忆；`synapse_search` 只接受 `keyword` / `hybrid`。详见 [MCP 文档](mcp.md)。
+先调用 `synapse_projects_list` 获取项目 ID 或 slug，再调用其他项目级工具。`synapse_remember` 会写入本地记忆；`synapse_search` 只接受 `keyword` / `hybrid`。详见 [MCP 文档](../reference/mcp.md)。
 
 ## 10. 清理
 

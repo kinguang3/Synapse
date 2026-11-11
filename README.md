@@ -19,7 +19,7 @@ Synapse is a local-first MCP service that gives AI coding agents a structured co
 
 `semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
 
-Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/limitations.md), the [Phase 2.1.1 report](docs/phase-2.1.1-report.md), the [Phase 2.2.1 report](docs/phase-2.2.1-report.md), and the [Phase 2.2.2 report](docs/phase-2.2.2-report.md).
+Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md) and the historical [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md), [Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md), and [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md) reports.
 
 ## Features
 
@@ -140,7 +140,7 @@ Available tools:
 - `synapse_recall`
 - `synapse_memory_get`
 
-All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/mcp.md).
+All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/reference/mcp.md).
 
 ## GUI
 
@@ -166,27 +166,22 @@ The default directory is determined by `platformdirs`:
 - Database: `<home>\synapse.db`
 - Lock files: `<home>\locks\index-<project_id>.lock`
 
-Override these paths with `SYNAPSE_HOME` and `SYNAPSE_CONFIG`. See the [configuration documentation](docs/configuration.md).
+Override these paths with `SYNAPSE_HOME` and `SYNAPSE_CONFIG`. See the [configuration documentation](docs/guides/configuration.md).
 
 ## Documentation
 
-The detailed documentation is currently written in Chinese:
+The detailed documentation is currently written in Chinese. Start from the [documentation index](docs/README.md).
 
-- [Getting started](docs/getting-started.md)
-- [Architecture](docs/architecture.md)
-- [CLI](docs/cli.md)
-- [Configuration](docs/configuration.md)
-- [Data model](docs/data-model.md)
-- [MCP Server](docs/mcp.md)
-- [Limitations](docs/limitations.md)
-- [Development and testing](docs/development.md)
-- [Phase 1.5 report](docs/phase-1.5-report.md)
-- [Phase 2.1 report](docs/phase-2.1-report.md)
-- [Phase 2.1.1 real Trae E2E report](docs/phase-2.1.1-report.md)
-- [Phase 2.2.1 memory retrieval report](docs/phase-2.2.1-report.md)
-- [Phase 2.2.2 context quality report](docs/phase-2.2.2-report.md)
-- [Phase 3.0 GUI architecture design](docs/phase-3.0-architecture.md)
-- [Product positioning and architecture review](docs/product/synapse-product-positioning.md)
+- [Getting started](docs/guides/getting-started.md)
+- [Configuration](docs/guides/configuration.md)
+- [Development and testing](docs/guides/development.md)
+- [Architecture](docs/architecture/overview.md)
+- [CLI](docs/reference/cli.md)
+- [MCP Server](docs/reference/mcp.md)
+- [Data model](docs/reference/data-model.md)
+- [Limitations](docs/reference/limitations.md)
+- [Post-GUI technical audit](docs/research/post-gui-technical-audit.md)
+- [Historical archive](docs/archive/README.md)
 
 ## Development
 

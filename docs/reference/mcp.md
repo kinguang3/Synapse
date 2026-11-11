@@ -129,7 +129,7 @@ Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信�
 
 测试覆盖初始化、`tools/list`、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝和 stdout 纯净性。
 
-Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现和 A-F 场景调用，详见 `docs/phase-2.1.1-report.md`。Phase 2.2.1 新增 `synapse_memory_get`，并在真实 Trae 中验证召回后读取完整正文，详见 `docs/phase-2.2.1-report.md`。Phase 2.2.2 在真实 Trae 中验证 9 个工具、query-aware context、overview 结构选择和 token 预算裁剪，详见 `docs/phase-2.2.2-report.md`。
+Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现和 A-F 场景调用，详见 `docs/archive/phases/phase-2.1.1-report.md`。Phase 2.2.1 新增 `synapse_memory_get`，并在真实 Trae 中验证召回后读取完整正文，详见 `docs/archive/phases/phase-2.2.1-report.md`。Phase 2.2.2 在真实 Trae 中验证 9 个工具、query-aware context、overview 结构选择和 token 预算裁剪，详见 `docs/archive/phases/phase-2.2.2-report.md`。
 
 ## 当前限制
 

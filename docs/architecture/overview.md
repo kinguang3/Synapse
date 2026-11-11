@@ -167,4 +167,4 @@ Phase 2 按以下顺序推进，且必须复用当前 Core：
 4. Embedding/向量检索。
 
 GUI 继续复用当前 Core 与 SQLite Schema；记忆编辑、删除和版本管理需要在后续阶段以加法能力实现。
-- 设计详情见 [Phase 3.0 GUI 架构设计](phase-3.0-architecture.md)。
+- 设计详情见 [Phase 3.0 GUI 架构设计](../archive/design/phase-3.0-architecture.md)。
