@@ -104,6 +104,24 @@ memory_get(node_id, project)
 - `memory_get` 负责按 ID 读取单条记忆，直接复用 `NodeRepository.get()`，不需要修改 schema。
 - `tags` 在 SQLite 中保存为空格分隔文本，同时原始数组保存在节点 `metadata_json`；读取时优先恢复原始数组。
 
+## 记忆列表
+
+```text
+MemoryTools.list(project, memory_type?, query?, limit, offset)
+  -> NodeRepository.memory_page()
+      -> SQL: project + node_type + memory_type + optional FTS
+      -> COUNT(*) with the same filters
+      -> ORDER BY updated_at DESC, created_at DESC, id ASC
+      -> query results additionally order by bm25(node_fts, 5.0, 1.0, 2.0)
+      -> LIMIT / OFFSET
+  -> total / memories / offset / limit / query / meta
+```
+
+- 过滤、计数和分页在同一条 SQL 路径中完成，不再先取固定窗口再在 Python 中过滤，因此 `total` 与当前过滤条件一致。
+- `limit` 范围为 1-200，`offset` 必须非负；超出范围的参数返回 `INVALID_ARGUMENT`。
+- `query` 使用 SQL FTS 关键词匹配，返回顺序稳定；列表的 `meta.mode` 为 `keyword`。
+- 项目隔离、节点类型和记忆类型条件同时应用于 COUNT 与列表查询，不会出现总数与页面不一致。
+
 ## 上下文构建
 
 `ContextBuilder` 读取项目统计、技术栈、重要模块、决策记忆和最近变更，并按 `max_tokens` 裁剪可选列表。裁剪后如果仍有可裁剪内容，结果会带 `truncated=true`。项目与统计字段属于必要信息，始终保留。
@@ -154,8 +172,9 @@ static SPA（index.html / app.js / styles.css）
 - 写操作：仅 `POST /projects/{id}/index` 触发一次索引，复用 `ProjectTools.index()` 与项目级 FileLock。
 - 前端为无构建静态 SPA，由 FastAPI 直接托管；不引入 Node 构建链。
 - 适配层负责参数校验、项目隔离、错误映射和响应整形；不写 SQL，不复制索引/检索/记忆业务。
-- 记忆列表通过 `MemoryTools.list()` 进入 Core，节点与图谱读取仍由适配层调用 Repository 完成。
-- 未实现：记忆编辑、删除与版本历史、完整分页、索引历史页面。
+- 记忆列表通过 `MemoryTools.list()` 进入 Core，支持 `memory_type`、`q`、`limit` 和 `offset`，`total` 为过滤后的准确数量；节点与图谱读取仍由适配层调用 Repository 完成。
+- `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约。
+- 未实现：记忆编辑、删除与版本历史、GUI Memory 页前端翻页控件、索引历史页面。
 
 ## 演化方向
 

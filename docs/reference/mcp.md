@@ -13,6 +13,32 @@ python -m synapse.integrations.mcp
 
 Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信息写入 stderr。不要在这两个入口外层再包装会向 stdout 打印横幅、进度条或普通文本的脚本。
 
+## 计划中的 uvx 启动（尚未发布）
+
+Synapse 当前尚未发布到 PyPI。发行包名准备使用 `synapse-knowledge`；`synapse-mcp` 名称已被其他项目占用，但 console script 名称仍保持 `synapse-mcp`。发布后可使用：
+
+```powershell
+uvx --from synapse-knowledge synapse-mcp
+```
+
+固定版本时使用 `uvx --from synapse-knowledge==<version> synapse-mcp`。`uvx` 只缓存 Python 环境，项目与记忆仍保存在 `SYNAPSE_HOME` 或平台默认数据目录中，升级包不会删除数据。
+
+MCP Client 配置示例：
+
+```json
+{
+  "mcpServers": {
+    "synapse": {
+      "command": "uvx",
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"],
+      "env": {
+        "SYNAPSE_HOME": "<Synapse home>"
+      }
+    }
+  }
+}
+```
+
 ## 配置
 
 ### Trae（用户级 `mcp.json`）

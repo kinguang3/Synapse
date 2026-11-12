@@ -79,6 +79,8 @@ synapse recall "FTS5"
 
 记忆会作为 `memory` 节点写入图谱，可被普通搜索、召回和 Context 使用。MCP 中先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 按 `node_id` 读取完整正文和 tags。
 
+GUI API 的记忆列表支持 `memory_type`、`q`、`limit`（1-200）和 `offset`，返回的 `total` 是应用过滤后的准确数量。当前 GUI 的 Memory 页仍固定读取前 100 条，尚未提供前端翻页控件。
+
 ## 7. 生成上下文
 
 ```powershell
@@ -122,3 +124,11 @@ synapse index . --workers 8     # 调整解析并发
 ## 10. 清理
 
 Synapse 不使用隐藏后台服务。删除项目数据可删除对应 SQLite 数据库；删除默认数据目录前请先确认没有需要保留的记忆。
+
+## 11. 验证
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests\test_memory_lifecycle.py tests\test_gui_api.py -q
+```
+
+这两个测试文件分别覆盖记忆过滤/分页/总数契约和 GUI API 认证、错误映射、锁冲突与分页行为。

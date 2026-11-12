@@ -9,6 +9,7 @@ from typing import Any
 from synapse.core.clock import utc_now_iso
 from synapse.core.ids import new_id
 from synapse.core.paths import normalized_root
+from synapse.core.text import build_fts_query
 from synapse.domain.enums import (
     PROVENANCE_TRUST,
     MemoryType,
@@ -684,6 +685,53 @@ class NodeRepository:
         ).fetchall()
         return [_node_from_row(row) for row in rows]
 
+    def memory_page(
+        self,
+        project_id: str,
+        *,
+        memory_type: str | None = None,
+        query: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> tuple[list[KnowledgeNode], int]:
+        source = "nodes"
+        conditions = [
+            "nodes.project_id=?",
+            "nodes.status='active'",
+            "nodes.node_type=?",
+        ]
+        parameters: list[Any] = [project_id, NodeType.MEMORY.value]
+        match_query = build_fts_query(query) if query else None
+        if query and match_query is None:
+            return [], 0
+        if match_query is not None:
+            source = "node_fts JOIN nodes ON nodes.pk = node_fts.rowid"
+            conditions.insert(0, "node_fts MATCH ?")
+            parameters.insert(0, match_query)
+        if memory_type:
+            conditions.append("nodes.memory_type=?")
+            parameters.append(memory_type)
+        where = " AND ".join(conditions)
+        order = "nodes.updated_at DESC, nodes.created_at DESC, nodes.id ASC"
+        if match_query is not None:
+            order = f"bm25(node_fts, 5.0, 1.0, 2.0) ASC, {order}"
+        connection = self._database.connect()
+        count_row = connection.execute(
+            f"SELECT COUNT(*) AS count FROM {source} WHERE {where}",
+            tuple(parameters),
+        ).fetchone()
+        total = int(count_row["count"]) if count_row else 0
+        rows = connection.execute(
+            f"""
+            SELECT nodes.* FROM {source}
+            WHERE {where}
+            ORDER BY {order}
+            LIMIT ? OFFSET ?
+            """,
+            (*parameters, limit, offset),
+        ).fetchall()
+        return [_node_from_row(row) for row in rows], total
+
     def memories(
         self,
         project_id: str,
@@ -691,26 +739,12 @@ class NodeRepository:
         memory_type: str | None = None,
         limit: int = 10,
     ) -> list[KnowledgeNode]:
-        conditions = [
-            "project_id=?",
-            "status='active'",
-            "node_type=?",
-        ]
-        parameters: list[Any] = [project_id, NodeType.MEMORY.value]
-        if memory_type:
-            conditions.append("memory_type=?")
-            parameters.append(memory_type)
-        parameters.append(limit)
-        rows = self._database.connect().execute(
-            f"""
-            SELECT * FROM nodes
-            WHERE {' AND '.join(conditions)}
-            ORDER BY updated_at DESC
-            LIMIT ?
-            """,
-            tuple(parameters),
-        ).fetchall()
-        return [_node_from_row(row) for row in rows]
+        nodes, _ = self.memory_page(
+            project_id,
+            memory_type=memory_type,
+            limit=limit,
+        )
+        return nodes
 
     def all_for_project(self, project_id: str, *, limit: int = 100_000) -> list[KnowledgeNode]:
         rows = self._database.connect().execute(

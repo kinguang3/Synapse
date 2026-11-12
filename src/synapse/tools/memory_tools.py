@@ -8,6 +8,8 @@ from synapse.knowledge.service import KnowledgeService
 from synapse.retrieval.service import RetrievalService
 from synapse.storage.sqlite.repositories import NodeRepository, ProjectRepository
 
+_MAX_MEMORY_LIMIT = 200
+
 
 class MemoryTools:
     def __init__(
@@ -89,52 +91,32 @@ class MemoryTools:
                 MemoryType(memory_type)
             except ValueError as exc:
                 raise InvalidArgument(f"未知记忆类型: {memory_type}") from exc
-        limit = max(1, min(limit, 200))
-        offset = max(0, offset)
-        window = offset + limit
-
-        meta: dict[str, Any] = {}
-        if query and query.strip():
-            result = self._retrieval.search(
-                query.strip(),
-                project_reference=project.id,
-                limit=min(window, 50),
-                mode="hybrid",
-                node_types=[NodeType.MEMORY.value],
+        if limit < 1 or limit > _MAX_MEMORY_LIMIT:
+            raise InvalidArgument(
+                f"limit 必须在 1 到 {_MAX_MEMORY_LIMIT} 之间",
+                details={"limit": limit},
             )
-            nodes = [
-                node
-                for node in (
-                    self._nodes.get(item["node_id"]) for item in result["results"]
-                )
-                if node is not None
-            ]
-            meta = dict(result.get("meta") or {})
-            total = len(nodes)
-        else:
-            nodes = self._nodes.memories(project.id, limit=window)
-            total = int(
-                self._nodes.counts(project.id).get(NodeType.MEMORY.value, 0)
+        if offset < 0:
+            raise InvalidArgument(
+                "offset 不能为负数",
+                details={"offset": offset},
             )
-
-        if memory_type:
-            nodes = [
-                node
-                for node in nodes
-                if node.memory_type is not None
-                and node.memory_type.value == memory_type
-            ]
-            total = len(nodes)
-
-        page = nodes[offset : offset + limit]
+        query_text = query.strip() if query and query.strip() else None
+        nodes, total = self._nodes.memory_page(
+            project.id,
+            memory_type=memory_type,
+            query=query_text,
+            limit=limit,
+            offset=offset,
+        )
         return {
             "project_id": project.id,
-            "memories": [self._memory_brief_payload(node) for node in page],
+            "memories": [self._memory_brief_payload(node) for node in nodes],
             "total": total,
             "offset": offset,
             "limit": limit,
-            "query": query.strip() if query and query.strip() else None,
-            "meta": meta,
+            "query": query_text,
+            "meta": {"mode": "keyword"} if query_text else {},
         }
 
     def get(self, node_id: str, *, project: str | None = None) -> dict[str, Any]:
