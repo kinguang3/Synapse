@@ -21,7 +21,7 @@ Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构�
 
 `semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
 
-已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md)、[Phase 3.2.1 报告](docs/research/phase-3.2.1-report.md)、[Phase 3.2.2 报告](docs/research/phase-3.2.2-report.md) 以及历史报告 [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md)、[Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md) 和 [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md)。
+已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md)。
 
 ## 功能
 
@@ -184,8 +184,6 @@ python -m synapse.integrations.gui --port 8765
 - [MCP Server](docs/reference/mcp.md)
 - [数据模型](docs/reference/data-model.md)
 - [限制与边界](docs/reference/limitations.md)
-- [GUI 后的技术审计](docs/research/post-gui-technical-audit.md)
-- [历史归档](docs/archive/README.md)
 
 ## 开发
 

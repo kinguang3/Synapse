@@ -21,7 +21,7 @@ Synapse is a local-first MCP service that gives AI coding agents a structured co
 
 `semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
 
-Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md), the [Phase 3.2.1](docs/research/phase-3.2.1-report.md) and [Phase 3.2.2](docs/research/phase-3.2.2-report.md) reports, and the historical [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md), [Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md), and [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md) reports.
+Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md).
 
 ## Features
 
@@ -184,8 +184,6 @@ The detailed documentation is currently written in Chinese. Start from the [docu
 - [MCP Server](docs/reference/mcp.md)
 - [Data model](docs/reference/data-model.md)
 - [Limitations](docs/reference/limitations.md)
-- [Post-GUI technical audit](docs/research/post-gui-technical-audit.md)
-- [Historical archive](docs/archive/README.md)
 
 ## Development
 
