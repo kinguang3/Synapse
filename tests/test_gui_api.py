@@ -189,6 +189,12 @@ def test_static_frontend_is_served(gui: dict[str, object]) -> None:
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Synapse" in response.text
+    assert "/memory_paging.js" in response.text
+
+    paging_script = client.get("/memory_paging.js")
+    assert paging_script.status_code == 200
+    assert "javascript" in paging_script.headers["content-type"]
+    assert "pageSummary" in paging_script.text
 
 
 def test_all_protected_routes_require_bearer_token(gui: dict[str, object]) -> None:
@@ -283,6 +289,59 @@ def test_memory_pagination_type_filter_and_query_total(
     assert beyond.status_code == 200
     assert beyond.json()["total"] == 65
     assert beyond.json()["memories"] == []
+
+
+def test_memory_pagination_boundaries(gui: dict[str, object]) -> None:
+    project_id = str(gui["project_id"])
+    path = f"/api/v1/projects/{project_id}/memories"
+
+    first = _get(gui, path, limit=20, offset=0)
+    assert first.status_code == 200
+    assert first.json()["total"] == 65
+    assert len(first.json()["memories"]) == 20
+
+    middle = _get(gui, path, limit=20, offset=20)
+    assert middle.status_code == 200
+    assert middle.json()["total"] == 65
+    assert len(middle.json()["memories"]) == 20
+
+    last = _get(gui, path, limit=20, offset=60)
+    assert last.status_code == 200
+    assert last.json()["total"] == 65
+    assert len(last.json()["memories"]) == 5
+
+    exact_multiple = _get(
+        gui,
+        path,
+        memory_type="fact",
+        limit=20,
+        offset=40,
+    )
+    assert exact_multiple.status_code == 200
+    assert exact_multiple.json()["total"] == 60
+    assert len(exact_multiple.json()["memories"]) == 20
+
+    smaller_than_limit = _get(
+        gui,
+        path,
+        memory_type="decision",
+        limit=20,
+        offset=0,
+    )
+    assert smaller_than_limit.status_code == 200
+    assert smaller_than_limit.json()["total"] == 5
+    assert len(smaller_than_limit.json()["memories"]) == 5
+
+    equal_to_limit = _get(
+        gui,
+        path,
+        memory_type="decision",
+        limit=5,
+        offset=0,
+    )
+    assert equal_to_limit.status_code == 200
+    assert equal_to_limit.json()["total"] == 5
+    assert len(equal_to_limit.json()["memories"]) == 5
 
 
 def test_missing_project_and_node_return_404(gui: dict[str, object]) -> None:
