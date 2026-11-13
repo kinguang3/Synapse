@@ -6,18 +6,16 @@ Synapse is a local-first MCP service that gives AI coding agents a structured co
 
 ## Status
 
-- Phase 1: a working local knowledge engine.
-- Phase 1.5: configuration, project-level index locking, FTS fallback, Source/node transaction consistency, crash recovery, boundary tests, documentation, and benchmarks.
-- Phase 2.1: a local stdio MCP Server with 8 project-scoped retrieval and memory tools.
-- Phase 2.1.1: discovery of all 8 tools and A-F E2E validation in a real Trae session.
-- Phase 2.2.1: `synapse_memory_get` retrieves the full content and metadata of a recalled memory, bringing the MCP tool count to 9.
-- Phase 2.2.2: query-aware context module selection, structural overview, path deduplication, and token-budget trimming.
-- Phase 3.0: knowledge-graph GUI architecture design completed.
-- Phase 3.1: read-only local GUI API and static knowledge workspace (Overview, Knowledge Graph, Search, Memory, Context, Indexing), reusing the same Core and SQLite database.
-- Phase 3.2.1: corrected Memory list type/query filtering, pagination, and exact totals, and added GUI API contract regression tests.
-- Phase 3.2.2: connected server-side Memory pagination to the GUI with keyword/type filters, exact totals, stale-response protection, and responsive pager controls.
-- Capability boundaries are aligned: MCP, CLI, and GUI expose only `keyword` / `hybrid` retrieval; `synapse memory-get` completes the CLI memory loop.
-- Not yet implemented: file watching, embedding/vector retrieval, memory editing/versioning, and cloud sync.
+Synapse is usable today as a local-first knowledge service:
+
+- Local knowledge engine with Python/Markdown parsing, SQLite FTS5, reference resolution, graph-expanded retrieval, and crash-safe indexing.
+- A local stdio MCP Server with 9 project-scoped tools for search, graph exploration, context, and memory.
+- A CLI covering project management, indexing, search, context, and the full memory loop.
+- An optional local GUI for graph exploration, search, memory browsing, context preview, and index status/trigger.
+- Memory APIs with type/query filters, server-side pagination, exact totals, and a 20-row GUI browser.
+- Capability boundaries are aligned: MCP, CLI, and GUI expose only `keyword` / `hybrid` retrieval.
+
+Not yet implemented: file watching, embedding/vector retrieval, memory editing/versioning, and cloud sync.
 
 `semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
 

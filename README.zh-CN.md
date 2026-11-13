@@ -6,18 +6,16 @@ Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构�
 
 ## 当前状态
 
-- Phase 1：可运行的本地知识引擎。
-- Phase 1.5：完成配置、项目级索引锁、FTS 降级、Source/节点事务一致性、崩溃恢复、边界测试、文档与 Benchmark。
-- Phase 2.1：完成本地 stdio MCP Server，提供 8 个项目范围的检索与记忆工具。
-- Phase 2.1.1：在真实 Trae 中完成 8 工具发现和 A-F E2E 调用验证。
-- Phase 2.2.1：新增 `synapse_memory_get`，按 `node_id` 读取完整记忆正文和元数据，MCP 工具总数达到 9 个。
-- Phase 2.2.2：完成 query-aware 上下文模块选择、结构化 overview、路径去重和 token 预算裁剪。
-- Phase 3.0：完成知识图谱 GUI 架构设计。
-- Phase 3.1：完成本地只读 GUI API 与静态知识工作台（Overview、Knowledge Graph、Search、Memory、Context、Indexing），复用同一套 Core 与同一个 SQLite 知识库。
-- Phase 3.2.1：修复记忆列表的类型/查询过滤、分页与总数准确性，并补充 GUI API 契约回归测试。
-- Phase 3.2.2：将后端记忆分页接入 GUI，支持关键词/类型筛选、准确总数、旧请求防覆盖和响应式分页控件。
-- 能力口径已对齐：MCP、CLI 与 GUI 只暴露 `keyword` / `hybrid` 检索；CLI 新增 `synapse memory-get` 补齐记忆读取闭环。
-- 尚未实现：文件监听、Embedding/向量检索、记忆编辑/版本管理、云同步。
+Synapse 目前可作为本地优先的知识服务使用：
+
+- 本地知识引擎：Python/Markdown 解析、SQLite FTS5、引用解析、图扩展检索和崩溃安全索引。
+- 本地 stdio MCP Server：提供 9 个项目作用域工具，覆盖检索、图探索、上下文和记忆。
+- CLI：覆盖项目管理、索引、检索、上下文以及完整记忆读取闭环。
+- 可选本地 GUI：支持图探索、检索、记忆浏览、上下文预览和索引状态/触发。
+- 记忆 API：支持类型/查询过滤、服务端分页和准确总数；GUI Memory 页每页 20 条。
+- 能力口径已对齐：MCP、CLI 与 GUI 只暴露 `keyword` / `hybrid` 检索。
+
+尚未实现：文件监听、Embedding/向量检索、记忆编辑/版本管理、云同步。
 
 `semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
 
