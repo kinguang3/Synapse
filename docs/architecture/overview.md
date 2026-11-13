@@ -172,9 +172,10 @@ static SPA（index.html / app.js / styles.css）
 - 写操作：仅 `POST /projects/{id}/index` 触发一次索引，复用 `ProjectTools.index()` 与项目级 FileLock。
 - 前端为无构建静态 SPA，由 FastAPI 直接托管；不引入 Node 构建链。
 - 适配层负责参数校验、项目隔离、错误映射和响应整形；不写 SQL，不复制索引/检索/记忆业务。
-- 记忆列表通过 `MemoryTools.list()` 进入 Core，支持 `memory_type`、`q`、`limit` 和 `offset`，`total` 为过滤后的准确数量；节点与图谱读取仍由适配层调用 Repository 完成。
-- `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约。
-- 未实现：记忆编辑、删除与版本历史、GUI Memory 页前端翻页控件、索引历史页面。
+- 记忆列表通过 `MemoryTools.list()` 进入 Core，支持 `memory_type`、`q`、`limit` 和 `offset`，`total` 为过滤后的准确数量；GUI Memory 页默认每页 20 条，显示当前范围与总页数，并由后端返回分页数据。
+- 搜索输入使用 260ms 防抖；搜索词或类型变化会重置 `offset`，旧请求通过请求序号和查询上下文校验后丢弃，避免覆盖新结果。
+- `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约；`tests/frontend/memory_paging.test.js` 覆盖分页状态与请求竞态判定。
+- 未实现：记忆编辑、删除与版本历史、索引历史页面。
 
 ## 演化方向
 

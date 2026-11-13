@@ -15,12 +15,13 @@ Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构�
 - Phase 3.0：完成知识图谱 GUI 架构设计。
 - Phase 3.1：完成本地只读 GUI API 与静态知识工作台（Overview、Knowledge Graph、Search、Memory、Context、Indexing），复用同一套 Core 与同一个 SQLite 知识库。
 - Phase 3.2.1：修复记忆列表的类型/查询过滤、分页与总数准确性，并补充 GUI API 契约回归测试。
+- Phase 3.2.2：将后端记忆分页接入 GUI，支持关键词/类型筛选、准确总数、旧请求防覆盖和响应式分页控件。
 - 能力口径已对齐：MCP、CLI 与 GUI 只暴露 `keyword` / `hybrid` 检索；CLI 新增 `synapse memory-get` 补齐记忆读取闭环。
 - 尚未实现：文件监听、Embedding/向量检索、记忆编辑/版本管理、云同步。
 
 `semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
 
-已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md)、[Phase 3.2.1 报告](docs/research/phase-3.2.1-report.md) 以及历史报告 [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md)、[Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md) 和 [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md)。
+已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md)、[Phase 3.2.1 报告](docs/research/phase-3.2.1-report.md)、[Phase 3.2.2 报告](docs/research/phase-3.2.2-report.md) 以及历史报告 [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md)、[Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md) 和 [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md)。
 
 ## 功能
 
@@ -31,6 +32,7 @@ Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构�
 - 查询感知的项目上下文：优先选择相关模块、覆盖不同路径，并按 token 预算裁剪可选部分。
 - 显式记忆：`fact`、`experience`、`decision`、`preference`、`summary`。
 - 记忆列表 API 支持项目/类型/查询过滤、`limit` / `offset` 分页，并返回过滤后的准确总数。
+- GUI 记忆浏览器使用每页 20 条的后端分页，显示准确范围/总数，支持关键词与类型筛选，并防止旧请求覆盖新结果。
 - 项目级 FileLock，避免同一项目被多个进程同时索引。
 - 进程崩溃后会标记中断的索引运行、取消未完成任务，并由下一次扫描安全重建。
 - 本地 stdio MCP Server，复用同一套 Core、配置和数据目录。

@@ -15,12 +15,13 @@ Synapse is a local-first MCP service that gives AI coding agents a structured co
 - Phase 3.0: knowledge-graph GUI architecture design completed.
 - Phase 3.1: read-only local GUI API and static knowledge workspace (Overview, Knowledge Graph, Search, Memory, Context, Indexing), reusing the same Core and SQLite database.
 - Phase 3.2.1: corrected Memory list type/query filtering, pagination, and exact totals, and added GUI API contract regression tests.
+- Phase 3.2.2: connected server-side Memory pagination to the GUI with keyword/type filters, exact totals, stale-response protection, and responsive pager controls.
 - Capability boundaries are aligned: MCP, CLI, and GUI expose only `keyword` / `hybrid` retrieval; `synapse memory-get` completes the CLI memory loop.
 - Not yet implemented: file watching, embedding/vector retrieval, memory editing/versioning, and cloud sync.
 
 `semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
 
-Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md), the [Phase 3.2.1 report](docs/research/phase-3.2.1-report.md), and the historical [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md), [Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md), and [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md) reports.
+Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md), the [Phase 3.2.1](docs/research/phase-3.2.1-report.md) and [Phase 3.2.2](docs/research/phase-3.2.2-report.md) reports, and the historical [Phase 2.1.1](docs/archive/phases/phase-2.1.1-report.md), [Phase 2.2.1](docs/archive/phases/phase-2.2.1-report.md), and [Phase 2.2.2](docs/archive/phases/phase-2.2.2-report.md) reports.
 
 ## Features
 
@@ -31,6 +32,7 @@ Known limitations: `synapse_recall` returns summaries and snippets, so callers m
 - Query-aware project context that ranks relevant modules, covers distinct paths, and trims optional sections to a token budget.
 - Explicit memory types: `fact`, `experience`, `decision`, `preference`, and `summary`.
 - Memory list API with project/type/query filters, `limit` / `offset` pagination, and exact filtered totals.
+- GUI Memory browser with 20-row server-side pages, exact range/total display, keyword and type filters, and stale-response protection.
 - Project-level FileLock to prevent concurrent indexing of the same project.
 - After a process crash, interrupted index runs are marked, unfinished tasks are cancelled, and the next scan safely rebuilds.
 - Local stdio MCP Server that reuses the same Core, configuration, and data directory.

@@ -69,7 +69,7 @@
 
 - 仅监听 `127.0.0.1`；请求需要本地 Bearer Token，并校验 Host/Origin。
 - 当前是以查看为主的工作台：可触发一次索引，但不能编辑或删除记忆。
-- 记忆列表 API 支持 `memory_type`、`q`、`limit` / `offset`，`total` 为过滤后的准确数量；GUI Memory 页仍固定请求前 100 条，没有前端翻页控件。其他接口没有完整分页。
+- 记忆列表 API 支持 `memory_type`、`q`、`limit` / `offset`，`total` 为过滤后的准确数量；GUI Memory 页默认每页 20 条并提供上一页/下一页。其他接口没有完整分页。
 - 不支持全图加载、实时推送或后台索引队列；索引请求在 Core worker 中同步执行，重复请求会因项目锁返回 `423`。
 - 前端是无构建静态 SPA，由 FastAPI 托管，不依赖 Node 构建链。
 
