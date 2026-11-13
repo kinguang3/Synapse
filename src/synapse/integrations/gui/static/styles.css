@@ -481,6 +481,10 @@ svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width:
 /* ---------- memory ---------- */
 
 .memory-layout { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.memory-controls { padding: 10px 12px 11px; border-bottom: 1px solid var(--line-soft); }
+.memory-controls .input { width: 100%; }
+.memory-search-meta { margin-top: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.06em; color: var(--faint); text-transform: uppercase; }
+.memory-list { max-height: min(56vh, 620px); overflow: auto; }
 .memory-list .memory-item { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 12px 16px; color: inherit; }
 .memory-list .memory-item:last-child { border-bottom: none; }
 .memory-list .memory-item:hover { background: rgba(255, 255, 255, 0.025); }
@@ -492,6 +496,13 @@ svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width:
 .readonly-note { display: flex; gap: 8px; align-items: flex-start; padding: 10px 14px; font-size: 10.5px; color: var(--faint); border-bottom: 1px solid var(--line-soft); background: rgba(255, 255, 255, 0.018); line-height: 1.6; }
 .readonly-note svg { flex: none; margin-top: 1px; }
 .readonly-note b { color: var(--muted); font-weight: 500; }
+.memory-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; padding: 10px 12px 11px; border-top: 1px solid var(--line-soft); }
+.memory-pager[hidden] { display: none; }
+.memory-range, .memory-page-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em; color: var(--faint); white-space: nowrap; }
+.memory-pager-actions { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+.memory-page-btn { height: 27px; padding: 0 10px; font-size: 10.5px; }
+.memory-page-btn:disabled { opacity: 0.32; }
+.memory-page-btn:disabled:hover { color: var(--muted); border-color: var(--line); background: rgba(255, 255, 255, 0.03); }
 
 /* ---------- context ---------- */
 
@@ -571,6 +582,8 @@ details.raw pre { margin: 6px 0 0; padding: 13px; background: rgba(9, 9, 11, 0.6
   .grid.two { grid-template-columns: minmax(0, 1fr); }
   .memory-layout { grid-template-columns: minmax(0, 1fr); }
   .memory-list { max-height: 300px; overflow: auto; }
+  .memory-pager { align-items: flex-start; }
+  .memory-pager-actions { width: 100%; justify-content: space-between; margin-left: 0; }
 }
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; }

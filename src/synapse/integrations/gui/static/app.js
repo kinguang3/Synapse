@@ -33,6 +33,24 @@ const REASON_LABELS = {
   salience: 'salience',
 };
 
+const MemoryPaging = window.SynapseMemoryPaging;
+const MEMORY_PAGE_SIZE = MemoryPaging.PAGE_SIZE;
+let memoryRequestSeq = 0;
+let memoryDetailSeq = 0;
+
+function createMemoryState() {
+  return {
+    type: '',
+    q: '',
+    selected: null,
+    offset: 0,
+    limit: MEMORY_PAGE_SIZE,
+    total: 0,
+    rows: [],
+    loading: false,
+  };
+}
+
 const state = {
   token: '',
   projects: [],
@@ -49,7 +67,7 @@ const state = {
   },
   graphPositions: {},
   overview: null,
-  memory: { type: '', q: '', selected: null },
+  memory: createMemoryState(),
   search: { last: null },
 };
 
@@ -1217,6 +1235,89 @@ function renderSearchResults(cached) {
 
 /* ----------------------------------------------------------------- memory */
 
+function resetMemoryDetail() {
+  memoryDetailSeq += 1;
+  const detail = $('#memory-detail');
+  if (detail) detail.innerHTML = '<div class="empty">选择左侧记忆查看完整内容。</div>';
+}
+
+function isMemoryRequestCurrent(request) {
+  return MemoryPaging.isCurrentRequest(request, {
+    id: memoryRequestSeq,
+    projectId: state.projectId,
+    type: state.memory.type,
+    q: state.memory.q,
+  });
+}
+
+function renderMemoryPager() {
+  const pager = $('#memory-pager');
+  const range = $('#memory-range');
+  const page = $('#memory-page');
+  const previous = $('#memory-prev');
+  const next = $('#memory-next');
+  if (!pager || !range || !page || !previous || !next) return;
+  const summary = MemoryPaging.pageSummary(
+    state.memory.total,
+    state.memory.offset,
+    state.memory.limit,
+  );
+  if (!summary.total) {
+    pager.hidden = true;
+    return;
+  }
+  pager.hidden = false;
+  range.textContent = `Showing ${fmtInt(summary.start)}–${fmtInt(summary.end)} of ${fmtInt(summary.total)} memories`;
+  page.textContent = `Page ${summary.page} of ${summary.pages}`;
+  previous.disabled = state.memory.loading || !summary.hasPrev;
+  next.disabled = state.memory.loading || !summary.hasNext;
+}
+
+function renderMemoryRows() {
+  const list = $('#memory-list');
+  const count = $('#memory-count');
+  if (!list || !count) return;
+  count.textContent = `${fmtInt(state.memory.total)} total`;
+  if (!state.memory.rows.length) {
+    const filtered = Boolean(state.memory.q || state.memory.type);
+    list.innerHTML = emptyState(
+      filtered ? '没有匹配记忆' : '暂无记忆',
+      filtered
+        ? '调整关键词或类型筛选后再试。'
+        : 'Agent 或开发者可通过 <code>synapse remember</code> 写入项目决策与经验。',
+    );
+    renderMemoryPager();
+    return;
+  }
+  list.innerHTML = state.memory.rows.map((item) => `
+    <button class="memory-item ${state.memory.selected === item.node_id ? 'active' : ''}" data-node="${esc(item.node_id)}">
+      <div class="memory-title">${esc(item.title)}</div>
+      <div class="memory-sub">
+        <span>${esc(item.memory_type || 'note')}</span>
+        <span>${esc(fmtRel(item.updated_at))}</span>
+        ${(item.tags || []).slice(0, 3).map((tag) => `<span>#${esc(tag)}</span>`).join('')}
+      </div>
+    </button>`).join('');
+  list.querySelectorAll('[data-node]').forEach((button) => {
+    button.addEventListener('click', () => selectMemory(button.dataset.node));
+  });
+  const selectedExists = state.memory.rows.some((row) => row.node_id === state.memory.selected);
+  if (!selectedExists) {
+    state.memory.selected = null;
+    selectMemory(state.memory.rows[0].node_id);
+  }
+  renderMemoryPager();
+}
+
+function goToMemoryPage(offset) {
+  if (state.memory.loading || offset === null || offset === state.memory.offset) return;
+  state.memory.offset = offset;
+  state.memory.selected = null;
+  memoryRequestSeq += 1;
+  resetMemoryDetail();
+  loadMemories();
+}
+
 async function renderMemory() {
   view.innerHTML = `
     <div class="page-head">
@@ -1232,33 +1333,84 @@ async function renderMemory() {
     <div class="memory-layout">
       <div class="panel">
         <div class="panel-head"><h3>Memories</h3><span class="aside" id="memory-count">—</span></div>
-        <div class="panel-body" style="padding:0 12px 10px">
-          <input class="input" id="memory-q" placeholder="在当前记忆中搜索…" autocomplete="off" style="margin:10px 0" />
+        <div class="memory-controls">
+          <input class="input" id="memory-q" value="${esc(state.memory.q)}" placeholder="在当前记忆中搜索关键词…" autocomplete="off" maxlength="500" />
+          <div class="memory-search-meta">SQL FTS · keyword · not hybrid recall</div>
         </div>
         <div class="readonly-note">${icon('i-memory')}<span><b>只读</b>：记忆的编辑与删除将在后续阶段提供，当前页面用于核对 Agent 可见的长期知识。</span></div>
         <div class="memory-list" id="memory-list"><div class="empty">加载中…</div></div>
+        <div class="memory-pager" id="memory-pager" hidden>
+          <span class="memory-range" id="memory-range"></span>
+          <div class="memory-pager-actions">
+            <button class="btn ghost memory-page-btn" id="memory-prev" type="button" disabled>Previous</button>
+            <span class="memory-page-label" id="memory-page"></span>
+            <button class="btn ghost memory-page-btn" id="memory-next" type="button" disabled>Next</button>
+          </div>
+        </div>
       </div>
       <div class="panel memory-detail" id="memory-detail">
         <div class="empty">选择左侧记忆查看完整内容。</div>
       </div>
     </div>`;
 
+  const timerRef = { id: null };
+  state.cleanup = () => {
+    if (timerRef.id) clearTimeout(timerRef.id);
+    memoryRequestSeq += 1;
+    memoryDetailSeq += 1;
+  };
+
   $('#memory-types').addEventListener('click', (event) => {
     const chip = event.target.closest('[data-type]');
-    if (!chip) return;
+    if (!chip || chip.dataset.type === state.memory.type) return;
     state.memory.type = chip.dataset.type;
+    state.memory.offset = 0;
     state.memory.selected = null;
+    memoryRequestSeq += 1;
+    if (timerRef.id) {
+      clearTimeout(timerRef.id);
+      timerRef.id = null;
+    }
+    resetMemoryDetail();
     for (const item of document.querySelectorAll('#memory-types .chip')) {
       item.classList.toggle('active', item.dataset.type === state.memory.type);
     }
     loadMemories();
   });
 
-  let timer = null;
   $('#memory-q').addEventListener('input', (event) => {
-    state.memory.q = event.target.value.trim();
-    clearTimeout(timer);
-    timer = setTimeout(() => loadMemories(), 260);
+    const value = event.target.value.trim();
+    if (value === state.memory.q) return;
+    state.memory.q = value;
+    state.memory.offset = 0;
+    state.memory.selected = null;
+    memoryRequestSeq += 1;
+    resetMemoryDetail();
+    if (timerRef.id) clearTimeout(timerRef.id);
+    if (!value) {
+      timerRef.id = null;
+      loadMemories();
+      return;
+    }
+    timerRef.id = setTimeout(() => {
+      timerRef.id = null;
+      loadMemories();
+    }, 260);
+  });
+
+  $('#memory-prev').addEventListener('click', () => {
+    goToMemoryPage(MemoryPaging.previousOffset(
+      state.memory.total,
+      state.memory.offset,
+      state.memory.limit,
+    ));
+  });
+  $('#memory-next').addEventListener('click', () => {
+    goToMemoryPage(MemoryPaging.nextOffset(
+      state.memory.total,
+      state.memory.offset,
+      state.memory.limit,
+    ));
   });
 
   await loadMemories();
@@ -1267,47 +1419,66 @@ async function renderMemory() {
 async function loadMemories() {
   const list = $('#memory-list');
   const count = $('#memory-count');
+  const pager = $('#memory-pager');
   if (!list) return;
+  const requestedOffset = state.memory.offset;
+  const request = {
+    id: ++memoryRequestSeq,
+    projectId: state.projectId,
+    type: state.memory.type,
+    q: state.memory.q,
+  };
+  state.memory.loading = true;
+  if (pager) pager.hidden = true;
+  if (count) count.textContent = '—';
   list.innerHTML = '<div class="empty">加载中…</div>';
   try {
     const data = await api(`/projects/${state.projectId}/memories`, {
       params: {
         memory_type: state.memory.type || undefined,
         q: state.memory.q || undefined,
-        limit: 100,
+        limit: state.memory.limit,
+        offset: requestedOffset,
       },
     });
-    count.textContent = `${fmtInt(data.total)} total`;
-    state.memory.rows = data.memories || [];
-    if (!state.memory.rows.length) {
-      list.innerHTML = emptyState('暂无记忆', 'Agent 或开发者可通过 <code>synapse remember</code> 写入项目决策与经验。');
+    if (!isMemoryRequestCurrent(request)) return;
+    const total = MemoryPaging.normalizeTotal(data.total);
+    const limit = MemoryPaging.normalizeLimit(data.limit || state.memory.limit);
+    const safeOffset = MemoryPaging.normalizeOffset(requestedOffset, total, limit);
+    if (safeOffset !== requestedOffset) {
+      state.memory.offset = safeOffset;
+      state.memory.limit = limit;
+      await loadMemories();
       return;
     }
-    list.innerHTML = state.memory.rows.map((item) => `
-      <button class="memory-item ${state.memory.selected === item.node_id ? 'active' : ''}" data-node="${esc(item.node_id)}">
-        <div class="memory-title">${esc(item.title)}</div>
-        <div class="memory-sub">
-          <span>${esc(item.memory_type || 'note')}</span>
-          <span>${esc(fmtRel(item.updated_at))}</span>
-          ${(item.tags || []).slice(0, 3).map((tag) => `<span>#${esc(tag)}</span>`).join('')}
-        </div>
-      </button>`).join('');
-    list.querySelectorAll('[data-node]').forEach((button) => {
-      button.addEventListener('click', () => selectMemory(button.dataset.node));
-    });
-    if (!state.memory.selected) {
-      const first = state.memory.rows[0];
-      if (first) selectMemory(first.node_id);
-    } else {
-      const exists = state.memory.rows.some((row) => row.node_id === state.memory.selected);
-      if (exists) selectMemory(state.memory.selected);
-    }
+    state.memory.loading = false;
+    state.memory.total = total;
+    state.memory.limit = limit;
+    state.memory.offset = MemoryPaging.normalizeOffset(data.offset, total, limit);
+    state.memory.rows = data.memories || [];
+    renderMemoryRows();
   } catch (err) {
-    list.innerHTML = `<div class="empty">加载失败：${esc(err.message)}</div>`;
+    if (!isMemoryRequestCurrent(request)) return;
+    state.memory.loading = false;
+    state.memory.rows = [];
+    state.memory.total = 0;
+    state.memory.selected = null;
+    resetMemoryDetail();
+    if (count) count.textContent = '—';
+    if (pager) pager.hidden = true;
+    list.innerHTML = `
+      <div class="error-box">
+        加载失败：${esc(err.message)}
+        <div style="margin-top:10px"><button class="btn ghost" id="memory-retry" type="button">重试</button></div>
+      </div>`;
+    const retry = $('#memory-retry');
+    if (retry) retry.addEventListener('click', () => loadMemories());
   }
 }
 
 async function selectMemory(nodeId) {
+  const requestId = ++memoryDetailSeq;
+  const projectId = state.projectId;
   state.memory.selected = nodeId;
   for (const item of document.querySelectorAll('.memory-item')) {
     item.classList.toggle('active', item.dataset.node === nodeId);
@@ -1317,6 +1488,11 @@ async function selectMemory(nodeId) {
   detail.innerHTML = '<div class="empty">加载中…</div>';
   try {
     const memory = await api(`/projects/${state.projectId}/memories/${nodeId}`);
+    if (
+      requestId !== memoryDetailSeq
+      || projectId !== state.projectId
+      || state.memory.selected !== nodeId
+    ) return;
     detail.innerHTML = `
       <div class="panel-head">
         <h3>Memory detail</h3>
@@ -1347,6 +1523,11 @@ async function selectMemory(nodeId) {
     });
     $('#memory-copy-id').addEventListener('click', () => copyText(nodeId));
   } catch (err) {
+    if (
+      requestId !== memoryDetailSeq
+      || projectId !== state.projectId
+      || state.memory.selected !== nodeId
+    ) return;
     detail.innerHTML = `<div class="error-box">加载失败：${esc(err.message)}</div>`;
   }
 }
@@ -1708,7 +1889,9 @@ function wireChrome() {
     state.projectId = projectSelect.value;
     state.project = state.projects.find((project) => project.id === state.projectId) || null;
     localStorage.setItem('synapse.project', state.projectId);
-    state.memory = { type: '', q: '', selected: null };
+    memoryRequestSeq += 1;
+    memoryDetailSeq += 1;
+    state.memory = createMemoryState();
     state.search.last = null;
     syncProjectChrome();
     onRoute();
