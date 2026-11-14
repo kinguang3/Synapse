@@ -1086,7 +1086,8 @@ async function renderGraph() {
 function updateZoomHud(graph) {
   const hud = document.getElementById('hud-zoom');
   if (!hud || !graph) return;
-  hud.textContent = `${Math.round(graph.transform.k * 100)}%`;
+  const value = `${Math.round(graph.transform.k * 100)}%`;
+  if (hud.textContent !== value) hud.textContent = value;
 }
 
 async function loadGraph() {
@@ -1931,10 +1932,6 @@ function wireChrome() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) updateIndexPill();
   });
-  const zoomObserver = new MutationObserver(() => {
-    if (state.graph) updateZoomHud(state.graph);
-  });
-  zoomObserver.observe(document.body, { subtree: true, childList: true });
   setInterval(() => { if (state.graph) updateZoomHud(state.graph); }, 400);
 }
 
