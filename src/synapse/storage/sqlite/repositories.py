@@ -789,6 +789,27 @@ class NodeRepository:
         result["total"] = int(total["count"])
         return result
 
+    def path_rows(self, project_id: str) -> list[dict[str, Any]]:
+        """Return lightweight path rows (no content) for structure views."""
+        rows = self._database.connect().execute(
+            """
+            SELECT id, node_type, path, title FROM nodes
+            WHERE project_id=? AND status='active' AND path IS NOT NULL
+              AND node_type IN ('file','document','class','function','method','doc_section')
+            ORDER BY path, node_type
+            """,
+            (project_id,),
+        ).fetchall()
+        return [
+            {
+                "id": str(row["id"]),
+                "node_type": str(row["node_type"]),
+                "path": str(row["path"]),
+                "title": str(row["title"]),
+            }
+            for row in rows
+        ]
+
     def get_by_source(self, source_id: str) -> list[KnowledgeNode]:
         rows = self._database.connect().execute(
             "SELECT * FROM nodes WHERE source_id=? ORDER BY start_line", (source_id,)
@@ -1037,6 +1058,14 @@ class RelationRepository:
             (project_id,),
         ).fetchone()
         return int(row["count"])
+
+    def counts_by_type(self, project_id: str) -> dict[str, int]:
+        rows = self._database.connect().execute(
+            "SELECT relation_type, COUNT(*) AS count FROM relations "
+            "WHERE project_id=? AND status='active' GROUP BY relation_type",
+            (project_id,),
+        ).fetchall()
+        return {str(row["relation_type"]): int(row["count"]) for row in rows}
 
     def all_for_project(self, project_id: str, *, limit: int = 200_000) -> list[Relation]:
         rows = self._database.connect().execute(

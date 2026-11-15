@@ -236,6 +236,36 @@ def create_app(
             request,
         )
 
+    @router.get("/projects/{project_id}/graph/capabilities")
+    async def graph_capabilities(
+        project_id: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        return await run(
+            lambda application: query_service.graph_capabilities(
+                application,
+                project_id,
+            ),
+            request,
+        )
+
+    @router.get("/projects/{project_id}/graph/structure")
+    async def graph_structure(
+        project_id: str,
+        request: Request,
+        path_prefix: str | None = Query(default=None, max_length=500),
+        limit: int = Query(default=200, ge=1, le=500),
+    ) -> dict[str, Any]:
+        return await run(
+            lambda application: query_service.graph_structure(
+                application,
+                project_id,
+                path_prefix=path_prefix,
+                limit=limit,
+            ),
+            request,
+        )
+
     @router.get("/projects/{project_id}/nodes/{node_id}")
     async def node(
         project_id: str,
