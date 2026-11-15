@@ -60,11 +60,13 @@ const state = {
   cleanup: null,
   pendingFocus: null,
   graph: null,
-  graphFilter: {
-    types: new Set(['file', 'class', 'function', 'method', 'document', 'doc_section', 'memory']),
-    relation: '',
-    maxNodes: 80,
-  },
+  graphView: 'architecture',
+  graphStores: null,
+  graphProject: null,
+  graphEpoch: 0,
+  graphDetailId: null,
+  graphDetailEpoch: 0,
+  graphFocusId: null,
   graphPositions: {},
   overview: null,
   memory: createMemoryState(),
@@ -88,6 +90,14 @@ const crumbView = document.getElementById('crumb-view');
 /* ------------------------------------------------------------------ utils */
 
 const $ = (selector, root = document) => root.querySelector(selector);
+
+function L(text) {
+  return window.SynapseI18n ? window.SynapseI18n.translate(text) : text;
+}
+
+function T(key, vars) {
+  return window.SynapseI18n ? window.SynapseI18n.t(key, vars) : key;
+}
 
 function esc(value) {
   return String(value == null ? '' : value)
@@ -116,14 +126,14 @@ function fmtDate(iso) {
 }
 
 function fmtRel(iso) {
-  if (!iso) return 'never';
+  if (!iso) return T('time.never');
   const d = new Date(iso).getTime();
   if (Number.isNaN(d)) return '—';
   const seconds = Math.max(0, (Date.now() - d) / 1000);
-  if (seconds < 60) return '刚刚';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} 小时前`;
-  if (seconds < 86400 * 30) return `${Math.floor(seconds / 86400)} 天前`;
+  if (seconds < 60) return T('time.now');
+  if (seconds < 3600) return T('time.minutes', { n: Math.floor(seconds / 60) });
+  if (seconds < 86400) return T('time.hours', { n: Math.floor(seconds / 3600) });
+  if (seconds < 86400 * 30) return T('time.days', { n: Math.floor(seconds / 86400) });
   return fmtDate(iso);
 }
 
@@ -268,12 +278,12 @@ function setConnection(status) {
   connState.classList.remove('ok', 'err');
   if (status === 'ok') {
     connState.classList.add('ok');
-    connText.textContent = 'LOCAL · CONNECTED';
+    connText.textContent = L('LOCAL · CONNECTED');
   } else if (status === 'pending') {
-    connText.textContent = 'CONNECTING…';
+    connText.textContent = L('CONNECTING…');
   } else {
     connState.classList.add('err');
-    connText.textContent = 'DISCONNECTED';
+    connText.textContent = L('DISCONNECTED');
   }
 }
 
@@ -302,20 +312,20 @@ function updateIndexPill() {
   const project = state.project;
   if (!project) {
     indexPill.className = 'pill none';
-    indexPill.textContent = 'NO PROJECT';
+    indexPill.textContent = L('NO PROJECT');
     return;
   }
   const indexed = project.last_indexed_at;
   if (!indexed) {
     indexPill.className = 'pill none';
-    indexPill.textContent = 'NOT INDEXED';
+    indexPill.textContent = L('NOT INDEXED');
     indexPill.title = '运行 synapse index 建立知识库';
     return;
   }
   const ageHours = (Date.now() - new Date(indexed).getTime()) / 3600000;
   const stale = ageHours > 24;
   indexPill.className = `pill ${stale ? 'stale' : 'ready'}`;
-  indexPill.textContent = `${stale ? 'STALE' : 'READY'} · ${fmtRel(indexed)}`;
+  indexPill.textContent = `${L(stale ? 'STALE' : 'READY')} · ${fmtRel(indexed)}`;
   indexPill.title = `最近索引：${fmtDate(indexed)}`;
 }
 
@@ -358,6 +368,7 @@ async function onRoute() {
   }
   try {
     await ROUTES[state.route].render();
+    if (window.SynapseI18n) SynapseI18n.apply(view);
   } catch (err) {
     if (err.message === 'UNAUTHENTICATED') return;
     view.innerHTML = `<div class="error-box">加载失败：${esc(err.message)}</div>`;
@@ -415,7 +426,7 @@ async function renderOverview() {
 
     <div class="grid two">
       <div class="panel">
-        <div class="panel-head"><h3>Node composition</h3><span class="aside">${nodeTypes.length} types</span></div>
+        <div class="panel-head"><h3>Node composition</h3><span class="aside">${nodeTypes.length} ${L('types')}</span></div>
         <div class="panel-body">
           ${nodeTypes.length ? nodeTypes.map(([type, count]) => `
             <div class="bar-row">
@@ -541,6 +552,7 @@ class GraphView {
     this.width = 0;
     this.height = 0;
     this.onStats = null;
+    this.onExpand = null;
     this.bind();
     this.resize();
     this.observer = new ResizeObserver(() => this.resize());
@@ -555,7 +567,12 @@ class GraphView {
     canvas.addEventListener('pointerleave', () => { this.hideTip(); });
     canvas.addEventListener('wheel', (event) => this.onWheel(event), { passive: false });
     canvas.addEventListener('dblclick', (event) => {
-      if (!this.pick(event)) this.fit();
+      const node = this.pick(event);
+      if (node && node.expandable && this.onExpand) {
+        this.onExpand(node.id);
+        return;
+      }
+      if (!node) this.fit();
     });
   }
 
@@ -574,19 +591,24 @@ class GraphView {
     if (this.observer) this.observer.disconnect();
   }
 
-  setData(nodes, edges) {
+  setData(nodes, edges, options) {
+    const opts = options || {};
     const previous = new Map(this.nodes.map((node) => [node.id, node]));
-    this.nodes = nodes.map((node, index) => {
+    this.nodes = (nodes || []).map((node, index) => {
       const old = previous.get(node.id) || state.graphPositions[node.id];
       const angle = index * 2.399963229728653;
       const radius = 90 + Math.sqrt(index + 1) * 34;
       return {
-        id: node.node_id,
+        id: node.id,
         title: node.title,
-        type: node.node_type,
+        type: node.type,
+        kind: node.kind || 'node',
+        synthetic: Boolean(node.synthetic),
         path: node.path,
-        lines: node.start_line ? `${node.start_line}-${node.end_line || node.start_line}` : '',
-        salience: Number(node.salience || 0.5),
+        lines: node.lines || '',
+        salience: Number(node.salience == null ? 0.5 : node.salience),
+        expandable: Boolean(node.expandable),
+        expanded: Boolean(node.expanded),
         degree: 0,
         x: old ? old.x : Math.cos(angle) * radius,
         y: old ? old.y : Math.sin(angle) * radius,
@@ -595,19 +617,32 @@ class GraphView {
       };
     });
     this.byId = new Map(this.nodes.map((node) => [node.id, node]));
-    this.edges = edges
-      .filter((edge) => this.byId.has(edge.from_node_id) && this.byId.has(edge.to_node_id))
+    this.edges = (edges || [])
+      .filter((edge) => this.byId.has(edge.from) && this.byId.has(edge.to))
       .map((edge) => ({
-        from: edge.from_node_id,
-        to: edge.to_node_id,
-        type: edge.relation_type,
-        confidence: Number(edge.confidence || 0.5),
+        from: edge.from,
+        to: edge.to,
+        type: edge.type,
+        confidence: Number(edge.confidence == null ? 0.5 : edge.confidence),
+        synthetic: Boolean(edge.synthetic),
       }));
     this.computeDegree();
     this.alpha = 1;
     this.ticks = 0;
-    this.fit();
+    if (opts.fit !== false) this.fit();
     this.start();
+  }
+
+  setNodeFlag(id, key, value) {
+    const node = this.byId.get(id);
+    if (!node) return;
+    node[key] = value;
+    this.draw();
+  }
+
+  clearSelection() {
+    this.selected = null;
+    this.draw();
   }
 
   computeDegree() {
@@ -774,12 +809,18 @@ class GraphView {
       const b = this.byId.get(edge.to);
       if (!a || !b) continue;
       const active = selected && (edge.from === selected || edge.to === selected);
+      ctx.setLineDash(edge.synthetic ? [3, 4] : []);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = active ? 'rgba(250, 250, 250, 0.5)' : 'rgba(161, 161, 170, 0.16)';
+      ctx.strokeStyle = active
+        ? 'rgba(250, 250, 250, 0.5)'
+        : edge.synthetic
+          ? 'rgba(161, 161, 170, 0.1)'
+          : 'rgba(161, 161, 170, 0.18)';
       ctx.lineWidth = active ? 1.3 : 0.8;
       ctx.stroke();
+      ctx.setLineDash([]);
       if (active) {
         const angle = Math.atan2(b.y - a.y, b.x - a.x);
         const tx = b.x - Math.cos(angle) * 9;
@@ -796,7 +837,9 @@ class GraphView {
 
     const shape = (node, radius) => {
       ctx.beginPath();
-      if (node.type === 'memory') {
+      if (node.kind === 'group') {
+        ctx.roundRect(node.x - radius * 1.4, node.y - radius, radius * 2.8, radius * 2, 5);
+      } else if (node.type === 'memory') {
         ctx.moveTo(node.x, node.y - radius);
         ctx.lineTo(node.x + radius, node.y);
         ctx.lineTo(node.x, node.y + radius);
@@ -812,14 +855,22 @@ class GraphView {
     };
 
     for (const node of this.nodes) {
-      const radius = 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
-      const color = NODE_COLORS[node.type] || '#a1a1aa';
+      const radius = node.kind === 'group'
+        ? 8 + node.salience * 5
+        : 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
+      const color = node.kind === 'group' ? '#3f3f46' : NODE_COLORS[node.type] || '#a1a1aa';
       const dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
       ctx.fillStyle = color;
       ctx.globalAlpha = dim ? 0.22 : 0.96;
       ctx.fill();
       ctx.globalAlpha = 1;
+      if (node.expandable && node.kind !== 'group') {
+        ctx.beginPath();
+        ctx.arc(node.x + radius + 3, node.y - radius - 1, 2, 0, Math.PI * 2);
+        ctx.fillStyle = node.expanded ? 'rgba(228, 228, 231, 0.85)' : 'rgba(161, 161, 170, 0.55)';
+        ctx.fill();
+      }
       if (node.id === selected) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius + 5, 0, Math.PI * 2);
@@ -838,8 +889,9 @@ class GraphView {
     for (const node of this.nodes) {
       const focused = node.id === selected || node === hover;
       const important = node.degree >= 7 && showLabels;
-      if (!focused && !important) continue;
-      const radius = 4.5 + node.salience * 8;
+      const always = showLabels && (node.kind === 'group' || this.nodes.length <= 40);
+      if (!focused && !important && !always) continue;
+      const radius = node.kind === 'group' ? 8 + node.salience * 5 : 4.5 + node.salience * 8;
       ctx.font = focused ? '600 11px Geist, "Segoe UI", sans-serif' : '10px Geist, "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -869,7 +921,9 @@ class GraphView {
     const point = this.world(this.screen(event));
     for (let i = this.nodes.length - 1; i >= 0; i -= 1) {
       const node = this.nodes[i];
-      const radius = 4.5 + node.salience * 8 + 4;
+      const radius = node.kind === 'group'
+        ? 16 + node.salience * 5
+        : 4.5 + node.salience * 8 + 4;
       if (Math.hypot(node.x - point.x, node.y - point.y) <= radius) return node;
     }
     return null;
@@ -1000,124 +1054,10 @@ class GraphView {
   }
 }
 
+/* ----------------------------------------------------------------- graph */
+
 async function renderGraph() {
-  view.innerHTML = `
-    <div class="graph-layout">
-      <div class="panel graph-toolbar">
-        <div class="group">
-          <span class="group-label">NODES</span>
-          <div class="chips" id="graph-types"></div>
-        </div>
-        <div class="group">
-          <span class="group-label">RELATION</span>
-          <select class="select" id="graph-relation">
-            <option value="">all</option>
-            ${RELATION_TYPES.map((type) => `<option value="${type}">${type}</option>`).join('')}
-          </select>
-        </div>
-        <div class="group">
-          <span class="group-label">LIMIT</span>
-          <select class="select" id="graph-limit">
-            ${[40, 80, 120, 200].map((value) => `<option value="${value}" ${value === state.graphFilter.maxNodes ? 'selected' : ''}>${value}</option>`).join('')}
-          </select>
-        </div>
-        <div class="spacer"></div>
-        <button class="btn ghost" id="graph-fit">Fit</button>
-        <button class="btn ghost" id="graph-reload">Reload</button>
-      </div>
-      <div class="graph-stage" id="graph-stage">
-        <canvas id="graph-canvas"></canvas>
-        <div class="graph-hud">
-          <div class="row"><span><b id="hud-nodes">0</b> nodes</span><span><b id="hud-edges">0</b> edges</span><span><b id="hud-zoom">100%</b> zoom</span></div>
-          <div class="row"><span>seeds chosen by salience, edges by relation confidence</span></div>
-        </div>
-        <div class="graph-legend" id="graph-legend"></div>
-        <div class="graph-truncated" id="graph-truncated" hidden><span class="pill stale">TRUNCATED</span></div>
-        <div class="graph-tip" id="graph-tip" hidden></div>
-      </div>
-    </div>`;
-
-  const typeChips = $('#graph-types');
-  typeChips.innerHTML = NODE_TYPES.map((type) => `
-    <span class="chip clickable ${state.graphFilter.types.has(type) ? 'active' : ''}" data-type="${type}">
-      <span class="swatch" style="display:inline-block;width:6px;height:6px;border-radius:2px;background:${NODE_COLORS[type]}"></span>${type}
-    </span>`).join('');
-
-  typeChips.addEventListener('click', (event) => {
-    const chip = event.target.closest('[data-type]');
-    if (!chip) return;
-    const type = chip.dataset.type;
-    if (state.graphFilter.types.has(type)) {
-      if (state.graphFilter.types.size === 1) return;
-      state.graphFilter.types.delete(type);
-      chip.classList.remove('active');
-    } else {
-      state.graphFilter.types.add(type);
-      chip.classList.add('active');
-    }
-    loadGraph();
-  });
-
-  $('#graph-relation').addEventListener('change', (event) => {
-    state.graphFilter.relation = event.target.value;
-    loadGraph();
-  });
-  $('#graph-limit').addEventListener('change', (event) => {
-    state.graphFilter.maxNodes = Number(event.target.value);
-    loadGraph();
-  });
-  $('#graph-fit').addEventListener('click', () => state.graph && state.graph.fit());
-  $('#graph-reload').addEventListener('click', () => loadGraph());
-
-  const canvas = $('#graph-canvas');
-  const graph = new GraphView(canvas, $('#graph-tip'), (id) => openNode(id));
-  graph.onStats = (stats) => {
-    $('#hud-nodes').textContent = stats.nodes;
-    $('#hud-edges').textContent = stats.edges;
-  };
-  state.graph = graph;
-  state.cleanup = () => { graph.stop(); state.graph = null; };
-  updateZoomHud(graph);
-  const params = routeParams();
-  if (params.get('node')) state.pendingFocus = params.get('node');
-  await loadGraph();
-}
-
-function updateZoomHud(graph) {
-  const hud = document.getElementById('hud-zoom');
-  if (!hud || !graph) return;
-  const value = `${Math.round(graph.transform.k * 100)}%`;
-  if (hud.textContent !== value) hud.textContent = value;
-}
-
-async function loadGraph() {
-  const graph = state.graph;
-  if (!graph) return;
-  const types = [...state.graphFilter.types];
-  if (!types.length) return;
-  const data = await api(`/projects/${state.projectId}/graph/overview`, {
-    params: {
-      max_nodes: state.graphFilter.maxNodes,
-      node_types: types.join(','),
-      relation_types: state.graphFilter.relation || undefined,
-    },
-  });
-  graph.setData(data.nodes || [], data.edges || []);
-  $('#hud-nodes').textContent = graph.nodes.length;
-  $('#hud-edges').textContent = graph.edges.length;
-  $('#graph-truncated').hidden = !data.truncated;
-  const counts = {};
-  for (const node of graph.nodes) counts[node.type] = (counts[node.type] || 0) + 1;
-  $('#graph-legend').innerHTML = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => `<span class="lg"><span class="sw" style="background:${NODE_COLORS[type] || '#a1a1aa'}"></span>${type} ${count}</span>`)
-    .join('');
-  if (state.pendingFocus) {
-    const id = state.pendingFocus;
-    state.pendingFocus = null;
-    graph.focusNode(id);
-    openNode(id);
-  }
+  await SynapseGraphPage.render();
 }
 
 /* ----------------------------------------------------------------- search */
@@ -1268,8 +1208,12 @@ function renderMemoryPager() {
     return;
   }
   pager.hidden = false;
-  range.textContent = `Showing ${fmtInt(summary.start)}–${fmtInt(summary.end)} of ${fmtInt(summary.total)} memories`;
-  page.textContent = `Page ${summary.page} of ${summary.pages}`;
+  range.textContent = window.SynapseI18n
+    ? SynapseI18n.t('memory.range', { start: fmtInt(summary.start), end: fmtInt(summary.end), total: fmtInt(summary.total) })
+    : `Showing ${fmtInt(summary.start)}–${fmtInt(summary.end)} of ${fmtInt(summary.total)} memories`;
+  page.textContent = window.SynapseI18n
+    ? SynapseI18n.t('memory.page', { page: summary.page, pages: summary.pages })
+    : `Page ${summary.page} of ${summary.pages}`;
   previous.disabled = state.memory.loading || !summary.hasPrev;
   next.disabled = state.memory.loading || !summary.hasNext;
 }
@@ -1278,7 +1222,7 @@ function renderMemoryRows() {
   const list = $('#memory-list');
   const count = $('#memory-count');
   if (!list || !count) return;
-  count.textContent = `${fmtInt(state.memory.total)} total`;
+  count.textContent = `${fmtInt(state.memory.total)} ${L('total')}`;
   if (!state.memory.rows.length) {
     const filtered = Boolean(state.memory.q || state.memory.type);
     list.innerHTML = emptyState(
@@ -1328,7 +1272,7 @@ async function renderMemory() {
       </div>
       <div class="chips" id="memory-types">
         <span class="chip clickable ${state.memory.type === '' ? 'active' : ''}" data-type="">all</span>
-        ${MEMORY_TYPES.map((type) => `<span class="chip clickable ${state.memory.type === type ? 'active' : ''}" data-type="${type}">${MEMORY_LABELS[type]} · ${type}</span>`).join('')}
+        ${MEMORY_TYPES.map((type) => `<span class="chip clickable ${state.memory.type === type ? 'active' : ''}" data-type="${type}">${L(MEMORY_LABELS[type])} · ${type}</span>`).join('')}
       </div>
     </div>
     <div class="memory-layout">
@@ -1502,9 +1446,9 @@ async function selectMemory(nodeId) {
       <div class="panel-body">
         <div class="chips" style="margin-bottom:10px">
           ${typeBadge(memory.node_type)}
-          ${memory.memory_type ? `<span class="chip active">${esc(MEMORY_LABELS[memory.memory_type] || memory.memory_type)}</span>` : ''}
-          <span class="chip">provenance ${esc(memory.provenance)}</span>
-          <span class="chip">confidence ${Number(memory.confidence || 0).toFixed(2)}</span>
+          ${memory.memory_type ? `<span class="chip active">${esc(L(MEMORY_LABELS[memory.memory_type] || memory.memory_type))}</span>` : ''}
+          <span class="chip">${L('provenance')} ${esc(memory.provenance)}</span>
+          <span class="chip">${L('confidence')} ${Number(memory.confidence || 0).toFixed(2)}</span>
         </div>
         <h2 style="margin:2px 0 8px;font-size:16px">${esc(memory.title)}</h2>
         <div class="content">${esc(memory.content)}</div>
@@ -1781,7 +1725,7 @@ function renderInspector(node, related, memory) {
   inspectorBody.innerHTML = `
     <div class="chips">
       ${typeBadge(node.node_type)}
-      ${node.memory_type ? `<span class="chip active">${esc(MEMORY_LABELS[node.memory_type] || node.memory_type)}</span>` : ''}
+      ${node.memory_type ? `<span class="chip active">${esc(L(MEMORY_LABELS[node.memory_type] || node.memory_type))}</span>` : ''}
       <span class="chip">v${esc(node.version)}</span>
     </div>
     <h2>${esc(node.title)}</h2>
@@ -1800,7 +1744,6 @@ function renderInspector(node, related, memory) {
     ${(node.tags || []).length ? `<span class="section-kicker">TAGS</span><div class="chips">${node.tags.map((tag) => `<span class="chip">#${esc(tag)}</span>`).join('')}</div>` : ''}
     <div class="inspector-actions">
       <button class="btn primary" id="inspector-graph">${icon('i-graph')}<span>在图谱中查看</span></button>
-      ${state.graph ? `<button class="btn ghost" id="inspector-expand">${icon('i-arrow')}<span>展开邻居</span></button>` : ''}
       <button class="btn ghost" id="inspector-copy">${icon('i-key')}<span>复制 ID</span></button>
     </div>
     <span class="section-kicker">RELATIONS</span>
@@ -1812,26 +1755,12 @@ function renderInspector(node, related, memory) {
   $('#inspector-copy').addEventListener('click', () => copyText(node.node_id));
   $('#inspector-graph').addEventListener('click', () => {
     state.pendingFocus = node.node_id;
-    if (state.route === 'graph' && state.graph) {
-      state.graph.focusNode(node.node_id);
+    if (state.route === 'graph' && state.graph && window.SynapseGraphPage) {
+      window.SynapseGraphPage.select(node.node_id);
     } else {
       location.hash = '#/graph';
     }
   });
-  const expand = $('#inspector-expand');
-  if (expand) {
-    expand.addEventListener('click', async () => {
-      if (!state.graph) return;
-      try {
-        const data = await api(`/projects/${state.projectId}/graph/${node.node_id}/neighbors`, { params: { depth: 1, direction: 'both', limit: 60 } });
-        const added = state.graph.merge(data);
-        state.graph.select(node.node_id);
-        toast(added ? `已合并 ${added} 个相邻节点` : '没有新的相邻节点');
-      } catch (err) {
-        toast(`展开失败：${err.message}`, true);
-      }
-    });
-  }
 }
 
 function closeInspector() {
@@ -1883,6 +1812,15 @@ function renderOnboarding() {
 /* -------------------------------------------------------------------- boot */
 
 function wireChrome() {
+  if (window.SynapseI18n) {
+    SynapseI18n.apply(document.body);
+    SynapseI18n.observe();
+    document.documentElement.lang = SynapseI18n.locale();
+    const langLabel = document.getElementById('lang-label');
+    if (langLabel) langLabel.textContent = SynapseI18n.locale() === 'zh-CN' ? 'EN' : '中文';
+    const langBtn = document.getElementById('lang-btn');
+    if (langBtn) langBtn.addEventListener('click', () => SynapseI18n.toggle());
+  }
   for (const button of document.querySelectorAll('.nav-item')) {
     button.addEventListener('click', () => { location.hash = `#/${button.dataset.route}`; });
   }

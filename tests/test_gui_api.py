@@ -196,6 +196,27 @@ def test_static_frontend_is_served(gui: dict[str, object]) -> None:
     assert "javascript" in paging_script.headers["content-type"]
     assert "pageSummary" in paging_script.text
 
+    i18n_script = client.get("/i18n.js")
+    assert i18n_script.status_code == 200
+    assert "javascript" in i18n_script.headers["content-type"]
+    assert "SynapseI18n" in i18n_script.text
+
+    graph_views = client.get("/graph_views.js")
+    assert graph_views.status_code == 200
+    assert "javascript" in graph_views.headers["content-type"]
+    assert "createStore" in graph_views.text
+
+    graph_page = client.get("/graph_page.js")
+    assert graph_page.status_code == 200
+    assert "javascript" in graph_page.headers["content-type"]
+    assert "SynapseGraphPage" in graph_page.text
+
+    html = response.text
+    assert html.index("/i18n.js") < html.index("/graph_views.js")
+    assert html.index("/graph_views.js") < html.index("/graph_page.js")
+    assert html.index("/graph_page.js") < html.index("/app.js")
+    assert 'id="lang-btn"' in html
+
 
 def test_all_protected_routes_require_bearer_token(gui: dict[str, object]) -> None:
     client = gui["client"]

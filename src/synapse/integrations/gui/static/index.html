@@ -21,6 +21,7 @@
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H20M17 12v3M14.5 12v2"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.6 2.6 2.6 13.4 0 16M12 4c-2.6 2.6-2.6 13.4 0 16"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></symbol>
   <symbol id="i-brand" viewBox="0 0 32 32">
     <defs>
@@ -71,6 +72,7 @@
     <div class="rail-foot">
       <div class="conn" id="conn-state"><span class="dot"></span><span id="conn-text">LOCKED</span></div>
       <button class="rail-btn" id="token-btn"><svg><use href="#i-key"/></svg><span>Access token</span></button>
+      <button class="rail-btn" id="lang-btn" title="切换语言 / Switch language"><svg><use href="#i-globe"/></svg><span id="lang-label">EN</span></button>
       <p class="rail-note">One local SQLite knowledge base, shared by MCP, CLI and this GUI.</p>
     </div>
   </aside>
@@ -123,7 +125,10 @@
 
 <div class="toast" id="toast" hidden></div>
 
+ <script src="/i18n.js"></script>
  <script src="/memory_paging.js"></script>
+ <script src="/graph_views.js"></script>
+ <script src="/graph_page.js"></script>
  <script src="/app.js"></script>
 </body>
 </html>
