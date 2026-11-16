@@ -25,6 +25,22 @@
     return i18n ? i18n.t(key, vars) : key;
   }
 
+  function clearCapabilities() {
+    state.graphCapabilities = null;
+    state.graphCapabilitiesProject = null;
+  }
+
+  function capabilities() {
+    if (state.graphCapabilities && state.graphCapabilitiesProject === state.projectId) {
+      return Promise.resolve(state.graphCapabilities);
+    }
+    return api('/projects/' + state.projectId + '/graph/capabilities').then(function (caps) {
+      state.graphCapabilities = caps;
+      state.graphCapabilitiesProject = state.projectId;
+      return caps;
+    });
+  }
+
   function ensureStores() {
     if (!state.graphStores || state.graphProject !== state.projectId) {
       state.graphStores = {};
@@ -369,6 +385,7 @@
       if (state.graph) state.graph.fit();
     });
     document.getElementById('graph-reload').addEventListener('click', function () {
+      clearCapabilities();
       loadRoot(currentView());
     });
     var stage = document.getElementById('graph-stage');
@@ -436,14 +453,14 @@
     if (state.graph) state.graph.clearSelection();
     setBusy(true);
     try {
-      var caps = await api('/projects/' + state.projectId + '/graph/capabilities');
+      var loads = [capabilities()];
+      if (viewId === 'architecture') loads.push(seedArchitecture(cfg, epoch));
+      else if (viewId === 'symbols') loads.push(seedSymbols(cfg, epoch));
+      else if (viewId === 'documentation') loads.push(seedDocumentation(cfg, epoch));
+      else loads.push(seedMemory(cfg, epoch));
+      var loaded = await Promise.all(loads);
       if (epoch !== state.graphEpoch) return;
-      cfg.capabilities = caps;
-      if (viewId === 'architecture') await seedArchitecture(cfg, epoch);
-      else if (viewId === 'symbols') await seedSymbols(cfg, epoch);
-      else if (viewId === 'documentation') await seedDocumentation(cfg, epoch);
-      else await seedMemory(cfg, epoch);
-      if (epoch !== state.graphEpoch) return;
+      cfg.capabilities = loaded[0];
       cfg.loaded = true;
       syncControls();
       paint({ fit: true });

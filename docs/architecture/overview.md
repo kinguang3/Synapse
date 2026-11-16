@@ -171,6 +171,7 @@ static SPA（index.html / app.js / styles.css）
 - 只读端点：projects、status、overview、search、graph/overview、graph/capabilities、graph/structure、nodes、graph/neighbors、memories、memories/{id}、context。
 - Graph 页面按四个知识视图组织：Architecture（项目 → 目录 → 文件）、Symbols（目录 → 文件 → 类/函数/方法）、Documentation（文档 → 章节）、Memory（记忆）。目录和项目根是视图层按真实 `path` 聚合的分组，标记 `synthetic` 且不写库；其余节点与边全部来自 Core。
 - `graph/capabilities` 返回节点类型与关系类型的真实计数，`graph/structure` 按 `path_prefix` 返回一层目录和文件，两者共同支撑逐层展开。
+- 首次进入 Graph 时 `graph/capabilities` 与当前视图数据并行加载；capabilities 按项目缓存，切换视图复用，显式 Reload/刷新/索引后失效。
 - 界面文案支持中/英切换（`static/i18n.js`）：默认跟随浏览器语言，可由左下角语言按钮或 `?lang=en` 覆盖，选择保存在 `localStorage`。Graph 页的占位符、详情文案与动态提示使用稳定 key；节点类型、关系类型、记忆类型等知识数据值不翻译。
 - 写操作：仅 `POST /projects/{id}/index` 触发一次索引，复用 `ProjectTools.index()` 与项目级 FileLock。
 - 前端为无构建静态 SPA，由 FastAPI 直接托管；不引入 Node 构建链。

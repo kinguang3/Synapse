@@ -63,6 +63,8 @@ const state = {
   graphView: 'architecture',
   graphStores: null,
   graphProject: null,
+  graphCapabilities: null,
+  graphCapabilitiesProject: null,
   graphEpoch: 0,
   graphDetailId: null,
   graphDetailEpoch: 0,
@@ -250,6 +252,8 @@ async function api(path, { params, method = 'GET', body } = {}) {
 
 async function connect() {
   setConnection('pending');
+  state.graphCapabilities = null;
+  state.graphCapabilitiesProject = null;
   try {
     const data = await api('/projects');
     state.projects = data.projects || [];
@@ -965,17 +969,17 @@ class GraphView {
     if (node !== this.hover) {
       this.hover = node;
       this.draw();
+      if (node) {
+        this.tip.innerHTML = `${esc(node.title)}<div class="sub">${esc(node.type)} · ${esc(node.path || '')}${node.lines ? `:${esc(node.lines)}` : ''}</div>`;
+      } else {
+        this.hideTip();
+        return;
+      }
     }
     if (node) {
-      const world = this.world(point);
       this.tip.hidden = false;
-      this.tip.innerHTML = `${esc(node.title)}<div class="sub">${esc(node.type)} · ${esc(node.path || '')}${node.lines ? `:${esc(node.lines)}` : ''}</div>`;
-      const rect = this.canvas.getBoundingClientRect();
-      const offset = this.canvas.parentElement.getBoundingClientRect();
-      this.tip.style.left = `${point.x + rect.left - offset.left}px`;
-      this.tip.style.top = `${(world.y * this.transform.k + this.transform.y) + rect.top - offset.top}px`;
-    } else {
-      this.hideTip();
+      this.tip.style.left = `${point.x}px`;
+      this.tip.style.top = `${point.y}px`;
     }
   }
 
@@ -1836,6 +1840,8 @@ function wireChrome() {
     onRoute();
   });
   $('#refresh-btn').addEventListener('click', () => {
+    state.graphCapabilities = null;
+    state.graphCapabilitiesProject = null;
     if (!state.projects.length) connect();
     else onRoute();
   });
