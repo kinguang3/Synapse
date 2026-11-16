@@ -292,85 +292,16 @@ def graph_structure(
     """Return one level of the on-disk hierarchy built from real node paths."""
     project = application.projects.resolve(project_id)
     prefix = _normalize_path_prefix(path_prefix)
-    rows = application.nodes.path_rows(project.id)
-
-    directories: dict[str, dict[str, Any]] = {}
-    files: dict[str, dict[str, Any]] = {}
-
-    for row in rows:
-        path = row["path"]
-        if prefix:
-            if not path.startswith(prefix + "/"):
-                continue
-            rest = path[len(prefix) + 1 :]
-        else:
-            rest = path
-        if not rest:
-            continue
-        parts = rest.split("/")
-        node_type = row["node_type"]
-        if len(parts) == 1:
-            entry = files.setdefault(
-                path,
-                {
-                    "path": path,
-                    "node_id": None,
-                    "title": parts[0],
-                    "node_type": "file",
-                    "symbols": 0,
-                    "sections": 0,
-                },
-            )
-            if node_type in {"file", "document"}:
-                entry["node_id"] = row["id"]
-                entry["title"] = row["title"]
-                entry["node_type"] = node_type
-                entry["path"] = path
-            elif node_type == "doc_section":
-                entry["sections"] = int(entry["sections"]) + 1
-            else:
-                entry["symbols"] = int(entry["symbols"]) + 1
-        else:
-            name = parts[0]
-            directory_path = f"{prefix}/{name}" if prefix else name
-            entry = directories.setdefault(
-                directory_path,
-                {
-                    "path": directory_path,
-                    "name": name,
-                    "files": 0,
-                    "documents": 0,
-                    "symbols": 0,
-                    "sections": 0,
-                },
-            )
-            if node_type == "document":
-                entry["documents"] = int(entry["documents"]) + 1
-            elif node_type == "file":
-                entry["files"] = int(entry["files"]) + 1
-            elif node_type == "doc_section":
-                entry["sections"] = int(entry["sections"]) + 1
-            else:
-                entry["symbols"] = int(entry["symbols"]) + 1
-
-    directory_list = sorted(directories.values(), key=lambda item: str(item["path"]))
-    file_list = [
-        item
-        for item in sorted(files.values(), key=lambda item: str(item["path"]))
-        if item["node_id"]
-    ]
-    truncated = len(directory_list) > limit or len(file_list) > limit
+    page = application.nodes.structure_page(project.id, prefix=prefix, limit=limit)
+    directories = page["directories"]
+    files = page["files"]
     return {
         "project_id": project.id,
         "prefix": prefix,
-        "directories": directory_list[:limit],
-        "files": file_list[:limit],
-        "truncated": truncated,
-        "meta": {
-            "directory_count": len(directory_list),
-            "file_count": len(file_list),
-            "path_rows": len(rows),
-        },
+        "directories": directories[:limit],
+        "files": files[:limit],
+        "truncated": len(directories) > limit or len(files) > limit,
+        "meta": page["meta"],
     }
 
 

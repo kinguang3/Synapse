@@ -123,6 +123,9 @@ def test_structure_lists_one_level_of_real_paths(gui: dict[str, object]) -> None
     assert files["app.py"]["symbols"] >= 2
     assert files["README.md"]["node_type"] == "document"
     assert body["truncated"] is False
+    assert body["meta"]["directory_count"] == 2
+    assert body["meta"]["file_count"] == 2
+    assert body["meta"]["path_rows"] >= 11
 
     nested = _get(
         gui,
@@ -201,3 +204,30 @@ def test_container_expansion_returns_real_children_only(gui: dict[str, object]) 
     assert "document" not in types
     for edge in body["edges"]:
         assert edge["relation_type"] == "CONTAINS"
+
+def test_structure_paginates_without_losing_meta_counts(gui: dict[str, object]) -> None:
+    project_id = str(gui["project_id"])
+    page = _get(
+        gui,
+        f"/api/v1/projects/{project_id}/graph/structure",
+        limit=1,
+    ).json()
+    assert len(page["directories"]) == 1
+    assert len(page["files"]) == 1
+    assert page["truncated"] is True
+    assert page["meta"]["directory_count"] == 2
+    assert page["meta"]["file_count"] == 2
+
+
+def test_structure_treats_prefix_as_literal(gui: dict[str, object]) -> None:
+    project_id = str(gui["project_id"])
+    for value in ("%", "src%"):
+        body = _get(
+            gui,
+            f"/api/v1/projects/{project_id}/graph/structure",
+            path_prefix=value,
+        ).json()
+        assert body["directories"] == []
+        assert body["files"] == []
+        assert body["meta"]["directory_count"] == 0
+        assert body["meta"]["file_count"] == 0

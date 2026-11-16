@@ -789,26 +789,121 @@ class NodeRepository:
         result["total"] = int(total["count"])
         return result
 
-    def path_rows(self, project_id: str) -> list[dict[str, Any]]:
-        """Return lightweight path rows (no content) for structure views."""
-        rows = self._database.connect().execute(
-            """
-            SELECT id, node_type, path, title FROM nodes
-            WHERE project_id=? AND status='active' AND path IS NOT NULL
-              AND node_type IN ('file','document','class','function','method','doc_section')
-            ORDER BY path, node_type
+    def structure_page(
+        self,
+        project_id: str,
+        *,
+        prefix: str,
+        limit: int,
+    ) -> dict[str, Any]:
+        """Aggregate one path level in SQL without loading every node row."""
+        scoped = """
+            WITH params AS (SELECT ? AS prefix),
+            scoped AS (
+                SELECT n.id, n.node_type, n.path, n.title,
+                       CASE WHEN p.prefix = ''
+                            THEN n.path
+                            ELSE substr(n.path, length(p.prefix) + 2)
+                       END AS rest
+                FROM nodes n CROSS JOIN params p
+                WHERE n.project_id = ? AND n.status = 'active' AND n.path IS NOT NULL
+                  AND n.node_type IN ('file','document','class','function','method','doc_section')
+                  AND (
+                      p.prefix = ''
+                      OR (
+                          substr(n.path, 1, length(p.prefix)) = p.prefix
+                          AND substr(n.path, length(p.prefix) + 1, 1) = '/'
+                      )
+                  )
+            )
+        """
+        connection = self._database.connect()
+        fetch_limit = limit + 1
+        directory_rows = connection.execute(
+            scoped
+            + """
+            SELECT substr(rest, 1, instr(rest, '/') - 1) AS name,
+                   SUM(CASE WHEN node_type = 'file' THEN 1 ELSE 0 END) AS files,
+                   SUM(CASE WHEN node_type = 'document' THEN 1 ELSE 0 END) AS documents,
+                   SUM(CASE WHEN node_type = 'doc_section' THEN 1 ELSE 0 END) AS sections,
+                   SUM(CASE WHEN node_type NOT IN ('file','document','doc_section')
+                            THEN 1 ELSE 0 END) AS symbols
+            FROM scoped
+            WHERE instr(rest, '/') > 0
+            GROUP BY name
+            ORDER BY name
+            LIMIT ?
             """,
-            (project_id,),
+            (prefix, project_id, fetch_limit),
         ).fetchall()
-        return [
+        file_rows = connection.execute(
+            scoped
+            + """
+            SELECT path,
+                   MAX(CASE WHEN node_type IN ('file','document') THEN id END) AS node_id,
+                   MAX(CASE WHEN node_type IN ('file','document') THEN title END) AS title,
+                   MAX(CASE WHEN node_type IN ('file','document') THEN node_type END) AS node_type,
+                   SUM(CASE WHEN node_type = 'doc_section' THEN 1 ELSE 0 END) AS sections,
+                   SUM(CASE WHEN node_type NOT IN ('file','document','doc_section')
+                            THEN 1 ELSE 0 END) AS symbols
+            FROM scoped
+            WHERE instr(rest, '/') = 0
+            GROUP BY path
+            HAVING node_id IS NOT NULL
+            ORDER BY path
+            LIMIT ?
+            """,
+            (prefix, project_id, fetch_limit),
+        ).fetchall()
+        meta = connection.execute(
+            scoped
+            + """
+            SELECT
+                (SELECT COUNT(*) FROM (
+                    SELECT 1 FROM scoped
+                    WHERE instr(rest, '/') > 0
+                    GROUP BY substr(rest, 1, instr(rest, '/') - 1)
+                )) AS directory_count,
+                (SELECT COUNT(*) FROM (
+                    SELECT 1 FROM scoped
+                    WHERE instr(rest, '/') = 0 AND node_type IN ('file','document')
+                    GROUP BY path
+                )) AS file_count,
+                (SELECT COUNT(*) FROM scoped) AS path_rows
+            """,
+            (prefix, project_id),
+        ).fetchone()
+        directories = [
             {
-                "id": str(row["id"]),
-                "node_type": str(row["node_type"]),
-                "path": str(row["path"]),
-                "title": str(row["title"]),
+                "path": f"{prefix}/{row['name']}" if prefix else str(row["name"]),
+                "name": str(row["name"]),
+                "files": int(row["files"]),
+                "documents": int(row["documents"]),
+                "symbols": int(row["symbols"]),
+                "sections": int(row["sections"]),
             }
-            for row in rows
+            for row in directory_rows
         ]
+        files = [
+            {
+                "path": str(row["path"]),
+                "node_id": str(row["node_id"]),
+                "title": str(row["title"]),
+                "node_type": str(row["node_type"]),
+                "symbols": int(row["symbols"]),
+                "sections": int(row["sections"]),
+            }
+            for row in file_rows
+        ]
+        return {
+            "directories": directories,
+            "files": files,
+            "meta": {
+                "directory_count": int(meta["directory_count"]) if meta else 0,
+                "file_count": int(meta["file_count"]) if meta else 0,
+                "path_rows": int(meta["path_rows"]) if meta else 0,
+            },
+        }
 
     def get_by_source(self, source_id: str) -> list[KnowledgeNode]:
         rows = self._database.connect().execute(
