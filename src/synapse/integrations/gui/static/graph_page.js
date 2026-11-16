@@ -20,6 +20,11 @@
     return global.SynapseGraph;
   }
 
+  function T(key, vars) {
+    var i18n = global.SynapseI18n;
+    return i18n ? i18n.t(key, vars) : key;
+  }
+
   function ensureStores() {
     if (!state.graphStores || state.graphProject !== state.projectId) {
       state.graphStores = {};
@@ -57,10 +62,14 @@
   /* ------------------------------------------------------------- rendering */
 
   function placeholder(viewId) {
-    if (viewId === 'memory') return '搜索记忆内容或关键词';
-    if (viewId === 'documentation') return '搜索文档标题';
-    if (viewId === 'symbols') return '搜索类、函数或方法';
-    return '搜索文件或目录';
+    if (viewId === 'memory') return T('graph.placeholder.memory');
+    if (viewId === 'documentation') return T('graph.placeholder.documentation');
+    if (viewId === 'symbols') return T('graph.placeholder.symbols');
+    return T('graph.placeholder.default');
+  }
+
+  function hintFor(view) {
+    return view.hintKey ? T(view.hintKey) : view.hint;
   }
 
   function memoryFilterHtml(cfg) {
@@ -104,13 +113,14 @@
           '<canvas id="graph-canvas"></canvas>' +
           '<div class="graph-hud"><div class="row"><span><b id="hud-nodes">0</b> nodes</span>' +
             '<span><b id="hud-edges">0</b> edges</span><span><b id="hud-zoom">100%</b> zoom</span></div>' +
-            '<div class="row" id="hud-hint">' + esc(view.hint) + '</div></div>' +
+            '<div class="row" id="hud-hint">' + esc(hintFor(view)) + '</div></div>' +
           '<div class="graph-legend" id="graph-legend"></div>' +
           '<div class="graph-empty" id="graph-empty" hidden></div>' +
           '<div class="graph-truncated" id="graph-truncated" hidden><span class="pill stale">TRUNCATED</span></div>' +
           '<div class="graph-tip" id="graph-tip" hidden></div>' +
         '</div>' +
-        '<aside class="graph-detail" id="graph-detail"><div class="detail-empty">选择一个节点查看详情</div></aside>' +
+        '<aside class="graph-detail" id="graph-detail"><div class="detail-empty">' +
+          esc(T('graph.detail.select')) + '</div></aside>' +
       '</div>' +
       '<div class="graph-statusbar">' +
         '<span>NODES <b id="graph-node-count">0</b></span>' +
@@ -235,7 +245,7 @@
       if (!stats.nodes) {
         empty.hidden = false;
         empty.innerHTML = '<div class="empty-title">Nothing loaded yet</div><div class="empty-detail">' +
-          esc(G().viewFor(currentView()).hint) + '</div>';
+          esc(hintFor(G().viewFor(currentView()))) + '</div>';
       } else {
         empty.hidden = true;
       }
@@ -261,7 +271,8 @@
 
   function setText(id, value) {
     var node = document.getElementById(id);
-    if (node) node.textContent = String(value);
+    var next = String(value);
+    if (node && node.textContent !== next) node.textContent = next;
   }
 
   function syncControls() {
@@ -275,7 +286,7 @@
         var count = Number(nodeCounts[type] || 0);
         var active = cfg.types.has(type);
         return '<button class="chip clickable' + (active ? ' active' : '') + '" data-type="' + type + '"' +
-          (count ? '' : ' title="该项目暂无此类节点"') + '>' +
+          (count ? '' : ' title="' + esc(T('graph.detail.noTypeNodes')) + '"') + '>' +
           '<span class="swatch" style="background:' + (NODE_COLORS[type] || '#a1a1aa') + '"></span>' +
           type + ' <b>' + count + '</b></button>';
       }).join('');
@@ -445,7 +456,7 @@
         empty.innerHTML = '<div class="empty-title">Load failed</div><div class="empty-detail">' +
           esc(err.message) + '</div><div class="empty-detail">Reload to retry.</div>';
       }
-      toast('图谱加载失败：' + err.message, true);
+      toast(T('graph.empty.loadFailed', { message: err.message }), true);
     } finally {
       if (epoch === state.graphEpoch) setBusy(false);
     }
@@ -462,8 +473,11 @@
     if (node) node.expanded = true;
   }
 
-  function absorbStructure(store, payload, parentId) {
+  function absorbStructure(store, payload, parentId, options) {
+    var opts = options || {};
+    var includeDocuments = opts.includeDocuments !== false;
     (payload.directories || []).forEach(function (dir) {
+      if (!includeDocuments && Number(dir.files || 0) + Number(dir.symbols || 0) === 0) return;
       var id = 'dir:' + dir.path;
       G().addSyntheticGroup(store, {
         id: id,
@@ -482,6 +496,7 @@
     (payload.files || []).forEach(function (file) {
       var childId = file.node_id;
       if (!childId) return;
+      if (!includeDocuments && file.node_type === 'document') return;
       var expandable = Number(file.symbols || 0) + Number(file.sections || 0) > 0;
       G().addPayload(store, {
         nodes: [{
@@ -506,7 +521,7 @@
     if (parentId) markExpanded(store, parentId);
   }
 
-  async function seedArchitecture(cfg, epoch) {
+  async function seedStructure(cfg, epoch, includeDocuments) {
     var data = await api('/projects/' + state.projectId + '/graph/structure', {
       params: { limit: cfg.maxNodes }
     });
@@ -527,17 +542,16 @@
         root: project.root_path
       }
     }, null);
-    absorbStructure(cfg.store, data, ROOT_ID);
+    absorbStructure(cfg.store, data, ROOT_ID, { includeDocuments: includeDocuments });
     cfg.truncated = Boolean(data.truncated);
   }
 
+  async function seedArchitecture(cfg, epoch) {
+    await seedStructure(cfg, epoch, true);
+  }
+
   async function seedSymbols(cfg, epoch) {
-    var data = await api('/projects/' + state.projectId + '/graph/overview', {
-      params: { node_types: 'file', max_nodes: cfg.maxNodes }
-    });
-    if (epoch !== state.graphEpoch) return;
-    G().addPayload(cfg.store, { nodes: data.nodes, edges: data.edges }, {});
-    cfg.truncated = Boolean(data.truncated);
+    await seedStructure(cfg, epoch, false);
   }
 
   async function seedDocumentation(cfg, epoch) {
@@ -611,10 +625,10 @@
         state.graph.focusNode(results[0].node_id);
         selectNode(results[0].node_id);
       } else {
-        toast('没有匹配的节点');
+        toast(T('graph.empty.searchNoMatch'));
       }
     } catch (err) {
-      toast('搜索失败：' + err.message, true);
+      toast(T('graph.empty.searchFailed', { message: err.message }), true);
     }
   }
 
@@ -642,11 +656,11 @@
     if (cfg.store.expanded.has(nodeId)) {
       var removed = G().collapseNode(cfg.store, nodeId);
       paint({ fit: false });
-      toast(removed ? '已折叠 ' + removed + ' 个子节点' : '已折叠');
+      toast(removed ? T('graph.toast.collapsedMany', { n: removed }) : T('graph.toast.collapsed'));
       return;
     }
     if (!node.expandable) {
-      toast('该节点没有可展开的真实子节点');
+      toast(T('graph.toast.noChildren'));
       return;
     }
     if (cfg.store.loading.has(nodeId)) return;
@@ -667,7 +681,7 @@
         var plan = planFor(node);
         if (!plan) {
           node.expandable = false;
-          toast('该节点类型不支持展开');
+          toast(T('graph.toast.unsupported'));
           return;
         }
         var params = { depth: 1, direction: plan.direction, limit: 80 };
@@ -682,14 +696,14 @@
       }
       if (!found) {
         node.expandable = false;
-        toast('没有可展示的真实子节点');
+        toast(T('graph.toast.noVisibleChildren'));
       } else if (!added) {
-        toast('相关节点已在图中');
+        toast(T('graph.toast.alreadyPresent'));
       }
       paint({ fit: false });
       if (nodeId === state.graphDetailId) selectNode(nodeId, { keep: true });
     } catch (err) {
-      toast('展开失败：' + err.message, true);
+      toast(T('graph.toast.expandFailed', { message: err.message }), true);
     } finally {
       cfg.store.loading.delete(nodeId);
       if (stage) stage.classList.remove('busy');
@@ -732,7 +746,7 @@
     var panel = document.getElementById('graph-detail');
     if (panel) {
       panel.classList.remove('has-node');
-      panel.innerHTML = '<div class="detail-empty">选择一个节点查看详情</div>';
+      panel.innerHTML = '<div class="detail-empty">' + esc(T('graph.detail.select')) + '</div>';
     }
     if (state.graph) state.graph.clearSelection();
   }
@@ -748,7 +762,8 @@
   function groupDetailHtml(node) {
     var meta = node.meta || {};
     return '<div class="detail-head"><span class="type-badge type-directory">directory</span>' +
-      '<button class="icon-btn" data-detail-close title="关闭">' + icon('i-close') + '</button></div>' +
+      '<button class="icon-btn" data-detail-close title="' + esc(T('graph.detail.close')) + '">' +
+        icon('i-close') + '</button></div>' +
       '<h2 class="detail-title">' + esc(node.title) + '</h2>' +
       '<div class="mono detail-path">' + esc(node.path || '/') + '</div>' +
       '<dl class="kv">' + rows([
@@ -756,11 +771,12 @@
         ['documents', meta.documents],
         ['symbols', meta.symbols],
         ['sections', meta.sections],
-        ['grouping', 'derived from node paths']
+        ['grouping', T('graph.detail.derivedGrouping')]
       ]) + '</dl>' +
-      '<div class="detail-note">目录节点是视图层按真实 <code>path</code> 聚合的分组，不是 KnowledgeNode，也没有写入数据库。</div>' +
+      '<div class="detail-note">' + T('graph.detail.directoryNote') + '</div>' +
       '<div class="detail-actions">' +
-        '<button class="btn primary" data-action="expand">' + icon('i-arrow') + '展开 / 折叠</button>' +
+        '<button class="btn primary" data-action="expand">' + icon('i-arrow') +
+          esc(T('graph.detail.expand')) + '</button>' +
       '</div>';
   }
 
@@ -798,18 +814,22 @@
     ]);
     var expandable = storeNode && storeNode.expandable;
     var actions = '<div class="detail-actions">' +
-      (expandable ? '<button class="btn primary" data-action="expand">' + icon('i-arrow') + '展开 / 折叠</button>' : '') +
-      (node.node_type === 'file' || node.node_type === 'document'
-        ? '<button class="btn ghost" data-action="symbols">在 Symbols 中查看</button>'
+      (expandable
+        ? '<button class="btn primary" data-action="expand">' + icon('i-arrow') +
+          esc(T('graph.detail.expand')) + '</button>'
         : '') +
-      '<button class="btn ghost" data-action="copy">' + icon('i-key') + '复制 ID</button>' +
+      (node.node_type === 'file' || node.node_type === 'document'
+        ? '<button class="btn ghost" data-action="symbols">' + esc(T('graph.detail.openSymbols')) + '</button>'
+        : '') +
+      '<button class="btn ghost" data-action="copy">' + icon('i-key') + esc(T('graph.detail.copyId')) + '</button>' +
       '</div>';
     return '<div class="detail-head"><span class="type-badge type-' + esc(node.node_type) + '">' +
       esc(node.node_type) + '</span>' +
       (isMemory && node.memory_type ? '<span class="chip active">' + esc(node.memory_type) + '</span>' : '') +
-      '<button class="icon-btn" data-detail-close title="关闭">' + icon('i-close') + '</button></div>' +
+      '<button class="icon-btn" data-detail-close title="' + esc(T('graph.detail.close')) + '">' +
+        icon('i-close') + '</button></div>' +
       '<h2 class="detail-title">' + esc(node.title) + '</h2>' +
-      '<div class="mono detail-path">' + esc(node.path || 'no path') +
+      '<div class="mono detail-path">' + esc(node.path || T('graph.detail.noPath')) +
         (node.start_line ? ':' + node.start_line + '-' + (node.end_line || node.start_line) : '') + '</div>' +
       '<dl class="kv">' + base + '</dl>' +
       (node.summary ? '<span class="section-kicker">SUMMARY</span><div class="detail-text">' + esc(node.summary) + '</div>' : '') +
@@ -820,10 +840,10 @@
           }).join('') + '</div>'
         : '') +
       '<span class="section-kicker">CONTENT' + (truncatedFlag ? ' · TRUNCATED' : '') + '</span>' +
-      '<div class="preview">' + esc(content || '（无内容）') + '</div>' +
+      '<div class="preview">' + esc(content || T('graph.detail.noContent')) + '</div>' +
       actions +
       '<span class="section-kicker">RELATIONS</span>' +
-      (relatedHtml || '<div class="detail-text">该节点暂未解析出关系。</div>');
+      (relatedHtml || '<div class="detail-text">' + esc(T('graph.detail.noRelations')) + '</div>');
   }
 
   async function ensureNode(id) {
@@ -847,7 +867,8 @@
         node = await ensureNode(nodeId);
       } catch (err) {
         panel.classList.add('has-node');
-        panel.innerHTML = '<div class="error-box">节点加载失败：' + esc(err.message) + '</div>';
+        panel.innerHTML = '<div class="error-box">' +
+          esc(T('graph.toast.nodeLoadFailed', { message: err.message })) + '</div>';
         return;
       }
     }
@@ -879,7 +900,8 @@
       wireDetail(panel, node, data.node);
     } catch (err) {
       if (token !== state.graphDetailEpoch) return;
-      panel.innerHTML = '<div class="error-box">节点加载失败：' + esc(err.message) + '</div>';
+      panel.innerHTML = '<div class="error-box">' +
+        esc(T('graph.toast.nodeLoadFailed', { message: err.message })) + '</div>';
     }
   }
 
@@ -906,7 +928,7 @@
             paint({ fit: false });
             selectNode(id);
           }).catch(function (err) {
-            toast('节点加载失败：' + err.message, true);
+            toast(T('graph.toast.nodeLoadFailed', { message: err.message }), true);
           });
           return;
         }

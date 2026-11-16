@@ -13,6 +13,12 @@ function edge(from, to, type) {
   return { from_node_id: from, to_node_id: to, relation_type: type, confidence: 0.9 };
 }
 
+test('every view exposes a translation key for its hint', () => {
+  for (const id of graph.VIEW_ORDER) {
+    assert.match(graph.VIEWS[id].hintKey, /^graph\.hint\./);
+  }
+});
+
 test('keeps the four knowledge views on separate layers', () => {
   const arch = new Set(graph.VIEWS.architecture.nodeTypes);
   const symbols = new Set(graph.VIEWS.symbols.nodeTypes);

@@ -169,15 +169,15 @@ static SPA（index.html / app.js / styles.css）
 
 - 入口：`python -m synapse.integrations.gui --port 8765`（可选 `gui` extra）。
 - 只读端点：projects、status、overview、search、graph/overview、graph/capabilities、graph/structure、nodes、graph/neighbors、memories、memories/{id}、context。
-- Graph 页面按四个知识视图组织：Architecture（项目 → 目录 → 文件）、Symbols（文件 → 类/函数/方法）、Documentation（文档 → 章节）、Memory（记忆）。目录和项目根是视图层按真实 `path` 聚合的分组，标记 `synthetic` 且不写库；其余节点与边全部来自 Core。
+- Graph 页面按四个知识视图组织：Architecture（项目 → 目录 → 文件）、Symbols（目录 → 文件 → 类/函数/方法）、Documentation（文档 → 章节）、Memory（记忆）。目录和项目根是视图层按真实 `path` 聚合的分组，标记 `synthetic` 且不写库；其余节点与边全部来自 Core。
 - `graph/capabilities` 返回节点类型与关系类型的真实计数，`graph/structure` 按 `path_prefix` 返回一层目录和文件，两者共同支撑逐层展开。
-- 界面文案支持中/英切换（`static/i18n.js`）：默认跟随浏览器语言，可由左下角语言按钮或 `?lang=en` 覆盖，选择保存在 `localStorage`。节点类型、关系类型、记忆类型等知识数据值不翻译。
+- 界面文案支持中/英切换（`static/i18n.js`）：默认跟随浏览器语言，可由左下角语言按钮或 `?lang=en` 覆盖，选择保存在 `localStorage`。Graph 页的占位符、详情文案与动态提示使用稳定 key；节点类型、关系类型、记忆类型等知识数据值不翻译。
 - 写操作：仅 `POST /projects/{id}/index` 触发一次索引，复用 `ProjectTools.index()` 与项目级 FileLock。
 - 前端为无构建静态 SPA，由 FastAPI 直接托管；不引入 Node 构建链。
 - 适配层负责参数校验、项目隔离、错误映射和响应整形；不写 SQL，不复制索引/检索/记忆业务。
 - 记忆列表通过 `MemoryTools.list()` 进入 Core，支持 `memory_type`、`q`、`limit` 和 `offset`，`total` 为过滤后的准确数量；GUI Memory 页默认每页 20 条，显示当前范围与总页数，并由后端返回分页数据。
 - 搜索输入使用 260ms 防抖；搜索词或类型变化会重置 `offset`，旧请求通过请求序号和查询上下文校验后丢弃，避免覆盖新结果。
-- `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约；`tests/frontend/memory_paging.test.js` 覆盖分页状态与请求竞态判定。
+- `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约；`tests/frontend/memory_paging.test.js` 覆盖分页状态与请求竞态判定，`tests/frontend/graph_page.test.js` 覆盖缩放 HUD 的无变化写入保护与 Graph i18n key 完整性。
 - 未实现：记忆编辑、删除与版本历史、索引历史页面。
 
 ## 演化方向

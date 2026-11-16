@@ -50,6 +50,9 @@ test('parameterized messages interpolate and keep unknown keys', () => {
   assert.equal(i18n.t('graph.status.groups', { n: 3 }), '3 个分组');
   assert.equal(i18n.t('graph.status.memories', { n: 12 }), '12 条记忆');
   assert.equal(i18n.t('graph.status.truncated'), '已按 LIMIT 截断');
+  assert.equal(i18n.t('graph.empty.loadFailed', { message: 'timeout' }), '图谱加载失败：timeout');
+  assert.equal(i18n.t('graph.toast.collapsedMany', { n: 4 }), '已折叠 4 个子节点');
+  assert.equal(i18n.t('graph.hint.symbols'), '从目录开始，展开文件，再展开类或函数。');
   assert.equal(i18n.t('missing.key'), 'missing.key');
   assert.equal(i18n.t('graph.status.groups', {}), ' 个分组');
 });

@@ -267,6 +267,93 @@
     'graph.status.groups': { 'zh-CN': '{n} 个分组', en: '{n} derived groups' },
     'graph.status.memories': { 'zh-CN': '{n} 条记忆', en: '{n} memories total' },
     'graph.status.truncated': { 'zh-CN': '已按 LIMIT 截断', en: 'result truncated by LIMIT' },
+    'graph.hint.architecture': {
+      'zh-CN': '项目 → 目录 → 文件。展开节点只加载下一层。',
+      en: 'Project → directory → file. Expand a node to load only its direct children.'
+    },
+    'graph.hint.symbols': {
+      'zh-CN': '从目录开始，展开文件，再展开类或函数。',
+      en: 'Start from a directory, expand a file, then expand a class or function.'
+    },
+    'graph.hint.documentation': {
+      'zh-CN': '先看文档；展开查看章节树。',
+      en: 'Documents first; expand one to read its section tree.'
+    },
+    'graph.hint.memory': {
+      'zh-CN': '长期项目记忆，可按类型与关键词筛选。',
+      en: 'Durable project memory, filtered by type and keyword.'
+    },
+    'graph.placeholder.memory': {
+      'zh-CN': '搜索记忆内容或关键词',
+      en: 'Search memory content or keywords'
+    },
+    'graph.placeholder.documentation': { 'zh-CN': '搜索文档标题', en: 'Search document titles' },
+    'graph.placeholder.symbols': {
+      'zh-CN': '搜索类、函数或方法',
+      en: 'Search classes, functions or methods'
+    },
+    'graph.placeholder.default': { 'zh-CN': '搜索文件或目录', en: 'Search files or directories' },
+    'graph.detail.select': { 'zh-CN': '选择一个节点查看详情', en: 'Select a node to inspect it' },
+    'graph.detail.close': { 'zh-CN': '关闭', en: 'Close' },
+    'graph.detail.expand': { 'zh-CN': '展开 / 折叠', en: 'Expand / collapse' },
+    'graph.detail.openSymbols': { 'zh-CN': '在 Symbols 中查看', en: 'Open in Symbols' },
+    'graph.detail.copyId': { 'zh-CN': '复制 ID', en: 'Copy ID' },
+    'graph.detail.noPath': { 'zh-CN': '无路径', en: 'no path' },
+    'graph.detail.noContent': { 'zh-CN': '（无内容）', en: '(no content)' },
+    'graph.detail.noRelations': {
+      'zh-CN': '该节点暂未解析出关系。',
+      en: 'No relations have been resolved for this node.'
+    },
+    'graph.detail.directoryNote': {
+      'zh-CN': '目录节点是视图层按真实 <code>path</code> 聚合的分组，不是 KnowledgeNode，也没有写入数据库。',
+      en: 'Directories are view-only groups aggregated from real <code>path</code> values; they are not KnowledgeNodes and are never written to the database.'
+    },
+    'graph.detail.derivedGrouping': {
+      'zh-CN': '由节点路径推导',
+      en: 'derived from node paths'
+    },
+    'graph.detail.noTypeNodes': {
+      'zh-CN': '该项目暂无此类节点',
+      en: 'No nodes of this type in this project'
+    },
+    'graph.empty.loadFailed': {
+      'zh-CN': '图谱加载失败：{message}',
+      en: 'Failed to load graph: {message}'
+    },
+    'graph.empty.searchNoMatch': { 'zh-CN': '没有匹配的节点', en: 'No matching nodes' },
+    'graph.empty.searchFailed': {
+      'zh-CN': '搜索失败：{message}',
+      en: 'Search failed: {message}'
+    },
+    'graph.toast.collapsed': { 'zh-CN': '已折叠', en: 'Collapsed' },
+    'graph.toast.collapsedMany': {
+      'zh-CN': '已折叠 {n} 个子节点',
+      en: 'Collapsed {n} child nodes'
+    },
+    'graph.toast.noChildren': {
+      'zh-CN': '该节点没有可展开的真实子节点',
+      en: 'This node has no real children to expand'
+    },
+    'graph.toast.unsupported': {
+      'zh-CN': '该节点类型不支持展开',
+      en: 'This node type cannot be expanded'
+    },
+    'graph.toast.noVisibleChildren': {
+      'zh-CN': '没有可展示的真实子节点',
+      en: 'No real children to show'
+    },
+    'graph.toast.alreadyPresent': {
+      'zh-CN': '相关节点已在图中',
+      en: 'Related nodes are already in the graph'
+    },
+    'graph.toast.expandFailed': {
+      'zh-CN': '展开失败：{message}',
+      en: 'Expand failed: {message}'
+    },
+    'graph.toast.nodeLoadFailed': {
+      'zh-CN': '节点加载失败：{message}',
+      en: 'Failed to load node: {message}'
+    },
     'memory.range': {
       'zh-CN': '显示 {start}–{end} / 共 {total} 条',
       en: 'Showing {start}–{end} of {total} memories'

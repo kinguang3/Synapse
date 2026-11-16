@@ -13,17 +13,19 @@
       searchTypes: ['file', 'document'],
       relationTypes: ['CONTAINS', 'IMPORTS', 'REFERENCES'],
       hint: 'Project → directory → file. Expand a node to load only its direct children.',
+      hintKey: 'graph.hint.architecture',
     },
     symbols: {
       id: 'symbols',
       label: 'Symbols',
       // Files are the entry points of this view; the symbols themselves are
-      // class/function/method. Keeping 'file' visible is what lets a user
-      // start from a file without a second widget.
+      // class/function/method. Directories and files are loaded lazily first,
+      // then a file expansion reveals its real symbols.
       nodeTypes: ['file', 'class', 'function', 'method'],
       searchTypes: ['class', 'function', 'method'],
       relationTypes: ['CONTAINS', 'CALLS', 'REFERENCES', 'IMPORTS', 'INHERITS'],
-      hint: 'Pick a file, then expand a class or function to load its real neighbours.',
+      hint: 'Start from a directory, expand a file, then expand a class or function.',
+      hintKey: 'graph.hint.symbols',
     },
     documentation: {
       id: 'documentation',
@@ -32,6 +34,7 @@
       searchTypes: ['document'],
       relationTypes: ['CONTAINS', 'REFERENCES'],
       hint: 'Documents first; expand one to read its section tree.',
+      hintKey: 'graph.hint.documentation',
     },
     memory: {
       id: 'memory',
@@ -40,6 +43,7 @@
       searchTypes: ['memory', 'note'],
       relationTypes: ['EXPLAINS', 'REFERENCES', 'RELATED_TO', 'DERIVED_FROM'],
       hint: 'Durable project memory, filtered by type and keyword.',
+      hintKey: 'graph.hint.memory',
     },
   };
 
