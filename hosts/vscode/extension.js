@@ -450,6 +450,65 @@ class CompanionController {
     });
   }
 
+  async graphCapabilities(params) {
+    const projectId = this.requireProject(params.projectId);
+    const client = await this.readyClient();
+    return client.graphCapabilities(projectId);
+  }
+
+  async graphStructure(params) {
+    const projectId = this.requireProject(params.projectId);
+    const client = await this.readyClient();
+    return client.graphStructure(projectId, {
+      pathPrefix: String(params.pathPrefix || ''),
+      limit: Math.max(1, Math.min(500, Number(params.limit || 200))),
+    });
+  }
+
+  async graphOverview(params) {
+    const projectId = this.requireProject(params.projectId);
+    const client = await this.readyClient();
+    return client.graphOverview(projectId, {
+      maxNodes: Math.max(1, Math.min(200, Number(params.maxNodes || 80))),
+      nodeTypes: String(params.nodeTypes || ''),
+      relationTypes: String(params.relationTypes || ''),
+    });
+  }
+
+  async graphNode(params) {
+    const projectId = this.requireProject(params.projectId);
+    const nodeId = String(params.nodeId || '');
+    if (!nodeId) throw new GuiError('缺少节点标识', { code: 'INVALID_ARGUMENT' });
+    const client = await this.readyClient();
+    return client.node(projectId, nodeId);
+  }
+
+  async graphNeighbors(params) {
+    const projectId = this.requireProject(params.projectId);
+    const nodeId = String(params.nodeId || '');
+    if (!nodeId) throw new GuiError('缺少节点标识', { code: 'INVALID_ARGUMENT' });
+    const client = await this.readyClient();
+    return client.graphNeighbors(projectId, nodeId, {
+      depth: Math.max(0, Math.min(3, Number(params.depth == null ? 1 : params.depth))),
+      direction: String(params.direction || 'both'),
+      relationTypes: String(params.relationTypes || ''),
+      nodeTypes: String(params.nodeTypes || ''),
+      limit: Math.max(1, Math.min(200, Number(params.limit || 50))),
+    });
+  }
+
+  async graphSearch(params) {
+    const projectId = this.requireProject(params.projectId);
+    const query = String(params.query || '').trim();
+    if (!query) throw new GuiError('搜索词不能为空', { code: 'INVALID_ARGUMENT' });
+    const client = await this.readyClient();
+    return client.search(projectId, query, {
+      mode: 'hybrid',
+      nodeTypes: String(params.nodeTypes || ''),
+      limit: Math.max(1, Math.min(50, Number(params.limit || 20))),
+    });
+  }
+
   async index(params) {
     const projectId = this.requireProject(params.projectId);
     const client = await this.readyClient();
@@ -542,6 +601,19 @@ class CompanionController {
         return this.memory(params);
       case 'context':
         return this.context(params);
+      case 'graphCapabilities':
+        return this.graphCapabilities(params);
+      case 'graphStructure':
+        return this.graphStructure(params);
+      case 'graphOverview':
+        return this.graphOverview(params);
+      case 'graphNode':
+      case 'node':
+        return this.graphNode(params);
+      case 'graphNeighbors':
+        return this.graphNeighbors(params);
+      case 'graphSearch':
+        return this.graphSearch(params);
       case 'index':
         return this.index(params);
       case 'openPath':
@@ -602,6 +674,8 @@ class SidebarViewProvider {
       cspSource: view.webview.cspSource,
       nonce,
       coreUri: resource('shared', 'sidebar', 'sidebar_core.js'),
+      graphCoreUri: resource('shared', 'sidebar', 'sidebar_graph_core.js'),
+      graphUri: resource('shared', 'sidebar', 'sidebar_graph.js'),
       sidebarUri: resource('shared', 'sidebar', 'sidebar.js'),
       styleUri: resource('shared', 'sidebar', 'sidebar.css'),
     });

@@ -160,6 +160,55 @@ class GuiClient {
     });
   }
 
+  async graphOverview(projectId, options) {
+    const opts = options || {};
+    return this.request(`/api/v1/projects/${encodeURIComponent(projectId)}/graph/overview`, {
+      params: {
+        max_nodes: opts.maxNodes || 80,
+        node_types: opts.nodeTypes,
+        relation_types: opts.relationTypes,
+      },
+    });
+  }
+
+  async graphCapabilities(projectId) {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/graph/capabilities`,
+    );
+  }
+
+  async graphStructure(projectId, options) {
+    const opts = options || {};
+    return this.request(`/api/v1/projects/${encodeURIComponent(projectId)}/graph/structure`, {
+      params: {
+        path_prefix: opts.pathPrefix,
+        limit: opts.limit || 200,
+      },
+    });
+  }
+
+  async node(projectId, nodeId) {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/nodes/${encodeURIComponent(nodeId)}`,
+    );
+  }
+
+  async graphNeighbors(projectId, nodeId, options) {
+    const opts = options || {};
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/graph/${encodeURIComponent(nodeId)}/neighbors`,
+      {
+        params: {
+          depth: opts.depth == null ? 1 : opts.depth,
+          direction: opts.direction || 'both',
+          relation_types: opts.relationTypes,
+          node_types: opts.nodeTypes,
+          limit: opts.limit || 50,
+        },
+      },
+    );
+  }
+
   async memories(projectId, options) {
     const opts = options || {};
     return this.request(`/api/v1/projects/${encodeURIComponent(projectId)}/memories`, {

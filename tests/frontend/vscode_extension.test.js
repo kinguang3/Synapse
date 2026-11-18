@@ -182,6 +182,46 @@ test('host bridge bootstraps, searches, and rejects path escapes without exposin
         token_estimate: 42,
       });
     }
+    if (parsed.pathname === '/api/v1/projects/project-1/graph/capabilities') {
+      return jsonResponse({
+        project_id: 'project-1',
+        node_counts: { file: 2, function: 1 },
+        relation_counts: { CONTAINS: 2, CALLS: 1 },
+        views: {},
+      });
+    }
+    if (parsed.pathname === '/api/v1/projects/project-1/graph/structure') {
+      return jsonResponse({
+        project_id: 'project-1',
+        prefix: '',
+        directories: [],
+        files: [{ node_id: 'file-1', node_type: 'file', title: 'app.py', path: 'app.py' }],
+        truncated: false,
+        meta: { file_count: 1, directory_count: 0 },
+      });
+    }
+    if (parsed.pathname === '/api/v1/projects/project-1/graph/overview') {
+      return jsonResponse({
+        project_id: 'project-1',
+        nodes: [{ node_id: 'doc-1', node_type: 'document', title: 'README.md' }],
+        edges: [],
+        truncated: false,
+      });
+    }
+    if (parsed.pathname === '/api/v1/projects/project-1/nodes/node-1') {
+      return jsonResponse({
+        node: { node_id: 'node-1', node_type: 'function', title: 'search_nodes' },
+        related: { calls: [] },
+      });
+    }
+    if (parsed.pathname === '/api/v1/projects/project-1/graph/node-1/neighbors') {
+      return jsonResponse({
+        start_node_id: 'node-1',
+        nodes: [{ node_id: 'node-2', node_type: 'function', title: 'graph_nodes' }],
+        edges: [],
+        truncated: false,
+      });
+    }
     throw new Error(`Unexpected request: ${parsed.pathname}`);
   };
 
@@ -253,6 +293,68 @@ test('host bridge bootstraps, searches, and rejects path escapes without exposin
     const contextResult = posted.find((message) => message.id === 5);
     assert.equal(contextResult.ok, true);
     assert.equal(contextResult.result.token_estimate, 42);
+
+    await messageHandler({
+      type: 'rpc',
+      id: 6,
+      method: 'graphCapabilities',
+      params: { projectId: 'project-1' },
+    });
+    const capabilities = posted.find((message) => message.id === 6);
+    assert.equal(capabilities.ok, true);
+    assert.equal(capabilities.result.node_counts.file, 2);
+
+    await messageHandler({
+      type: 'rpc',
+      id: 7,
+      method: 'graphStructure',
+      params: { projectId: 'project-1', pathPrefix: '', limit: 80 },
+    });
+    const structure = posted.find((message) => message.id === 7);
+    assert.equal(structure.ok, true);
+    assert.equal(structure.result.files[0].node_id, 'file-1');
+
+    await messageHandler({
+      type: 'rpc',
+      id: 8,
+      method: 'graphSearch',
+      params: { projectId: 'project-1', query: 'search nodes', nodeTypes: 'function,class' },
+    });
+    const graphSearch = posted.find((message) => message.id === 8);
+    assert.equal(graphSearch.ok, true);
+    assert.equal(graphSearch.result.results[0].title, 'search_nodes');
+
+    await messageHandler({
+      type: 'rpc',
+      id: 9,
+      method: 'node',
+      params: { projectId: 'project-1', nodeId: 'node-1' },
+    });
+    const nodeResult = posted.find((message) => message.id === 9);
+    assert.equal(nodeResult.ok, true);
+    assert.equal(nodeResult.result.node.title, 'search_nodes');
+
+    await messageHandler({
+      type: 'rpc',
+      id: 10,
+      method: 'graphNeighbors',
+      params: {
+        projectId: 'project-1',
+        nodeId: 'node-1',
+        depth: 1,
+        direction: 'both',
+        relationTypes: 'CALLS',
+      },
+    });
+    const neighbors = posted.find((message) => message.id === 10);
+    assert.equal(neighbors.ok, true);
+    assert.equal(neighbors.result.nodes[0].node_id, 'node-2');
+
+    const graphRequest = requestLog.find(
+      (item) => item.path === '/api/v1/projects/project-1/graph/capabilities',
+    );
+    assert.equal(graphRequest.authorization, 'Bearer ' + TOKEN);
+    assert.equal(graphRequest.url.includes(TOKEN), false);
 
     await messageHandler({
       type: 'rpc',
