@@ -113,6 +113,6 @@
     }
   },
   "scripts": {
-    "test": "node --test ../tests/frontend/gui_client.test.js ../tests/frontend/webview_html.test.js ../tests/frontend/sidebar_core.test.js ../tests/frontend/vscode_extension.test.js ../tests/frontend/sidebar_dom.test.js"
+    "test": "node --test ../tests/frontend/gui_client.test.js ../tests/frontend/webview_html.test.js ../tests/frontend/sidebar_core.test.js ../tests/frontend/sidebar_graph_core.test.js ../tests/frontend/vscode_extension.test.js ../tests/frontend/sidebar_dom.test.js"
   }
 }
