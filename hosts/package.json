@@ -1,0 +1,118 @@
+{
+  "name": "synapse-companion",
+  "displayName": "Synapse Companion",
+  "description": "Local Synapse project memory, search and context in a shared editor sidebar.",
+  "version": "0.1.0",
+  "publisher": "synapse-local",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kinguang3/Synapse.git"
+  },
+  "files": [
+    "README.md",
+    "LICENSE",
+    "vscode/**",
+    "shared/**"
+  ],
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "mcp",
+    "memory",
+    "knowledge",
+    "context",
+    "synapse"
+  ],
+  "activationEvents": [
+    "onView:synapse.companion.sidebar",
+    "onCommand:synapse.companion.focus"
+  ],
+  "main": "./vscode/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "synapse.companion.focus",
+        "title": "Open Companion Sidebar",
+        "category": "Synapse"
+      },
+      {
+        "command": "synapse.companion.refresh",
+        "title": "Refresh Companion",
+        "category": "Synapse",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "synapse.companion.startServer",
+        "title": "Start Local Service",
+        "category": "Synapse"
+      },
+      {
+        "command": "synapse.companion.setToken",
+        "title": "Set Local Service Token",
+        "category": "Synapse"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "synapseSidebar",
+          "title": "Synapse",
+          "icon": "vscode/media/synapse.svg"
+        }
+      ]
+    },
+    "views": {
+      "synapseSidebar": [
+        {
+          "type": "webview",
+          "id": "synapse.companion.sidebar",
+          "name": "Companion"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "synapse.companion.refresh",
+          "when": "view == synapse.companion.sidebar",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Synapse Companion",
+      "properties": {
+        "synapse.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8765",
+          "description": "Loopback URL of the local Synapse GUI API."
+        },
+        "synapse.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python executable used to start the local Synapse service. Leave empty to use the workspace .venv or python on PATH."
+        },
+        "synapse.autoStartServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start the local Synapse GUI service when the sidebar cannot reach it."
+        },
+        "synapse.requestTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "description": "Timeout for local Synapse API requests."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test ../tests/frontend/gui_client.test.js ../tests/frontend/webview_html.test.js ../tests/frontend/sidebar_core.test.js ../tests/frontend/vscode_extension.test.js ../tests/frontend/sidebar_dom.test.js"
+  }
+}
