@@ -11,6 +11,7 @@
   var busy = false;
   var transientStatus = '';
   var noticeTimer = null;
+  var graphPage = null;
   var persisted = vscode.getState() || {};
 
   function byId(id) {
@@ -202,6 +203,7 @@
     elements.contextOutput.hidden = true;
     elements.contextOutput.textContent = '';
     elements.contextMeta.textContent = '';
+    if (graphPage) graphPage.reset();
   }
 
   function applyBootstrap(data) {
@@ -217,6 +219,11 @@
     if (currentTab === 'memory' && state.connection === 'connected' && state.projectId && memoryLoadedFor !== state.projectId) {
       setTimeout(function () {
         if (!busy) loadMemories(true);
+      }, 0);
+    }
+    if (currentTab === 'graph' && state.connection === 'connected' && state.projectId) {
+      setTimeout(function () {
+        if (!busy && graphPage) graphPage.activate();
       }, 0);
     }
   }
@@ -527,7 +534,28 @@
     if (currentTab === 'memory' && state.projectId && memoryLoadedFor !== state.projectId && !busy) {
       loadMemories(true);
     }
+    if (currentTab === 'graph' && graphPage && !busy) {
+      graphPage.activate();
+    }
   }
+
+  graphPage = window.SynapseSidebarGraph.create({
+    rpc: rpc,
+    getProjectId: function () {
+      return state.projectId;
+    },
+    getProject: currentProject,
+    notify: showNotice,
+    copy: copyText,
+    openPath: async function (path, line) {
+      try {
+        await rpc('openPath', { path: path, line: line || 1 });
+      } catch (error) {
+        handleFailure(error);
+      }
+    },
+  });
+  graphPage.init();
 
   elements.refreshButton.addEventListener('click', bootstrap);
   elements.startButton.addEventListener('click', startServer);
@@ -551,6 +579,7 @@
         state.status = data && data.status ? data.status : null;
         renderStatus();
         if (currentTab === 'memory' && state.projectId) loadMemories(true);
+        if (currentTab === 'graph' && graphPage && state.projectId) graphPage.activate();
       })
       .catch(handleFailure)
       .finally(function () {

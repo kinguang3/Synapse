@@ -10,6 +10,8 @@ function options() {
     cspSource: 'https://file+.vscode-resource.vscode-cdn.net',
     nonce: 'abc123',
     coreUri: 'https://file+.vscode-resource.vscode-cdn.net/core.js',
+    graphCoreUri: 'https://file+.vscode-resource.vscode-cdn.net/graph_core.js',
+    graphUri: 'https://file+.vscode-resource.vscode-cdn.net/graph.js',
     sidebarUri: 'https://file+.vscode-resource.vscode-cdn.net/sidebar.js',
     styleUri: 'https://file+.vscode-resource.vscode-cdn.net/sidebar.css',
   };
@@ -26,6 +28,8 @@ test('uses external scripts with a nonce and a restrictive CSP', () => {
   assert.match(html, /connect-src 'none'/);
   assert.match(html, /default-src 'none'/);
   assert.match(html, /<script nonce="abc123" src="https:\/\/file\+\.vscode-resource\.vscode-cdn\.net\/core\.js"><\/script>/);
+  assert.match(html, /<script nonce="abc123" src="https:\/\/file\+\.vscode-resource\.vscode-cdn\.net\/graph_core\.js"><\/script>/);
+  assert.match(html, /<script nonce="abc123" src="https:\/\/file\+\.vscode-resource\.vscode-cdn\.net\/graph\.js"><\/script>/);
   assert.match(html, /<script nonce="abc123" src="https:\/\/file\+\.vscode-resource\.vscode-cdn\.net\/sidebar\.js"><\/script>/);
   assert.equal(html.includes('<script>'), false);
 });
@@ -46,6 +50,7 @@ test('provides the stable sidebar shell ids used by the shared UI', () => {
     'search-results',
     'memory-form',
     'memory-results',
+    'graph-root',
     'context-form',
     'context-output',
     'start-button',

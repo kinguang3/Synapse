@@ -5,9 +5,11 @@ function buildWebviewHtml(options) {
   const cspSource = String(opts.cspSource || '');
   const nonce = String(opts.nonce || '');
   const coreUri = String(opts.coreUri || '');
+  const graphCoreUri = String(opts.graphCoreUri || '');
+  const graphUri = String(opts.graphUri || '');
   const sidebarUri = String(opts.sidebarUri || '');
   const styleUri = String(opts.styleUri || '');
-  if (!cspSource || !nonce || !coreUri || !sidebarUri || !styleUri) {
+  if (!cspSource || !nonce || !coreUri || !graphCoreUri || !graphUri || !sidebarUri || !styleUri) {
     throw new Error('Webview asset metadata is incomplete');
   }
   return `<!doctype html>
@@ -45,6 +47,7 @@ function buildWebviewHtml(options) {
   <nav class="tabs" aria-label="Synapse 视图">
     <button type="button" class="tab is-active" data-tab="search">搜索</button>
     <button type="button" class="tab" data-tab="memory">记忆</button>
+    <button type="button" class="tab" data-tab="graph">图谱</button>
     <button type="button" class="tab" data-tab="context">上下文</button>
   </nav>
 
@@ -88,6 +91,10 @@ function buildWebviewHtml(options) {
       </div>
     </section>
 
+    <section class="panel" data-panel="graph" hidden>
+      <div id="graph-root"></div>
+    </section>
+
     <section class="panel" data-panel="context" hidden>
       <form id="context-form" class="form-row context-form">
         <input id="context-query" type="search" placeholder="可选：围绕任务构建上下文" autocomplete="off">
@@ -112,6 +119,8 @@ function buildWebviewHtml(options) {
   </footer>
 </div>
 <script nonce="${nonce}" src="${coreUri}"></script>
+<script nonce="${nonce}" src="${graphCoreUri}"></script>
+<script nonce="${nonce}" src="${graphUri}"></script>
 <script nonce="${nonce}" src="${sidebarUri}"></script>
 </body>
 </html>`;

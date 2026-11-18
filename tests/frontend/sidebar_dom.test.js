@@ -82,6 +82,60 @@ window.acquireVsCodeApi = function () {
           provenance: 'explicit',
           updated_at: '2026-11-17T00:00:00Z'
         });
+      } else if (message.method === 'graphCapabilities') {
+        reply(message.id, {
+          project_id: 'project-1',
+          node_counts: { file: 2, function: 1, document: 1, memory: 1 },
+          relation_counts: { CONTAINS: 3, CALLS: 1 },
+          views: {}
+        });
+      } else if (message.method === 'graphStructure') {
+        reply(message.id, {
+          project_id: 'project-1',
+          prefix: '',
+          directories: [{ name: 'src', path: 'src', files: 1, documents: 0, symbols: 1, sections: 0 }],
+          files: [{
+            node_id: 'file-1',
+            node_type: 'file',
+            title: 'query_service.py',
+            path: 'src/synapse/integrations/gui/query_service.py',
+            symbols: 1,
+            sections: 0
+          }],
+          truncated: false,
+          meta: { file_count: 2, directory_count: 1 }
+        });
+      } else if (message.method === 'graphSearch') {
+        reply(message.id, {
+          results: [{
+            node_id: 'node-1',
+            node_type: 'function',
+            title: 'graph_search_hit',
+            path: 'src/synapse/integrations/gui/query_service.py',
+            start_line: 163,
+            score: 0.9
+          }],
+          meta: { mode: 'hybrid', returned: 1, took_ms: 4 }
+        });
+      } else if (message.method === 'graphOverview') {
+        reply(message.id, { nodes: [], edges: [], truncated: false });
+      } else if (message.method === 'graphNeighbors') {
+        reply(message.id, { nodes: [], edges: [], truncated: false });
+      } else if (message.method === 'node') {
+        reply(message.id, {
+          node: {
+            node_id: 'node-1',
+            node_type: 'function',
+            title: 'graph_search_hit',
+            path: 'src/synapse/integrations/gui/query_service.py',
+            start_line: 163,
+            end_line: 180,
+            content_preview: 'def graph_search_hit(): pass',
+            salience: 0.9,
+            confidence: 0.8
+          },
+          related: {}
+        });
       } else {
         reply(message.id, {});
       }
@@ -102,6 +156,13 @@ window.addEventListener('load', function () {
     var title = document.querySelector('#memory-results .result-title');
     if (title) title.click();
   }, 700);
+  setTimeout(function () {
+    document.querySelector('[data-tab="graph"]').click();
+  }, 1000);
+  setTimeout(function () {
+    document.getElementById('sg-q').value = 'graph hit';
+    document.getElementById('sg-search-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  }, 1400);
 });
 `;
 }
@@ -113,6 +174,8 @@ function buildHarness() {
     cspSource: 'file:',
     nonce,
     coreUri: asset('sidebar_core.js'),
+    graphCoreUri: asset('sidebar_graph_core.js'),
+    graphUri: asset('sidebar_graph.js'),
     sidebarUri: asset('sidebar.js'),
     styleUri: asset('sidebar.css'),
   });
@@ -133,7 +196,7 @@ function runBrowser(filePath) {
         '--no-first-run',
         '--disable-extensions',
         `--user-data-dir=${profile}`,
-        '--virtual-time-budget=4000',
+        '--virtual-time-budget=6000',
         '--dump-dom',
         pathToFileURL(filePath).toString(),
       ],
@@ -174,6 +237,10 @@ test(
       assert.match(html, /Keep SQLite FTS5 for local retrieval\./);
       assert.match(html, /decision/);
       assert.match(html, /Synapse — D:\\Synapse/);
+      assert.match(html, /Architecture/);
+      assert.match(html, /Documentation/);
+      assert.match(html, /graph_search_hit/);
+      assert.match(html, /def graph_search_hit\(\): pass/);
       assert.equal(html.includes('请求超时'), false);
       assert.equal(html.includes('连接失败'), false);
       assert.equal(html.includes('降级'), false);

@@ -106,7 +106,7 @@
 
   function tabFromHash(hash) {
     var value = String(hash || '').replace(/^#\/?/, '').split('?')[0];
-    if (value === 'memory' || value === 'context' || value === 'search') return value;
+    if (value === 'memory' || value === 'context' || value === 'search' || value === 'graph') return value;
     return 'search';
   }
 
