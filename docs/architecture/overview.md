@@ -181,6 +181,22 @@ static SPA（index.html / app.js / styles.css）
 - `tests/test_gui_api.py` 覆盖全部 13 个 API 端点、静态首页、认证/项目/节点错误、索引锁冲突，以及记忆分页和总数契约；`tests/frontend/memory_paging.test.js` 覆盖分页状态与请求竞态判定，`tests/frontend/graph_page.test.js` 覆盖缩放 HUD 的无变化写入保护与 Graph i18n key 完整性。
 - 未实现：记忆编辑、删除与版本历史、索引历史页面。
 
+### 编辑器 Sidebar
+
+```text
+Shared Webview（hosts/shared/sidebar）
+  -> postMessage RPC
+  -> VS Code 兼容扩展宿主（hosts/vscode）
+  -> 同一个 127.0.0.1 FastAPI / GUI API
+```
+
+- 扩展根目录是 `hosts/`，活动栏容器为 `synapseSidebar`，Webview view 为 `synapse.companion.sidebar`。
+- Webview 不直接访问网络，也不持有令牌；令牌保存在扩展 SecretStorage，只通过 `Authorization: Bearer` 发送。
+- 扩展宿主可手动或按配置启动本地 GUI 服务；服务仍复用同一个 Core、SQLite 和项目数据。
+- VS Code 1.146.0 与 Trae CN 3.4.20（VS Code 内核 1.107.1）已完成真实运行验证；Cursor 仅完成静态兼容性判断。
+- 共享 UI 使用零构建 JavaScript，与现有静态 GUI 一致；不引入 React、Tailwind、XYFlow 或 Node 构建链。
+- 详细设计见 [Phase 3.4 跨宿主 Sidebar 架构](../research/phase-3.4-sidebar-architecture.md)。
+
 ## 演化方向
 
 Phase 2 按以下顺序推进，且必须复用当前 Core：

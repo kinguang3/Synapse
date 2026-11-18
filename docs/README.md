@@ -20,6 +20,12 @@
 - [限制与边界](reference/limitations.md)
 - [性能基准](benchmarks/README.md)
 
+## 研究
+
+- [Phase 3.4 宿主能力审计](research/phase-3.4-host-capability-audit.md)
+- [Phase 3.4 跨宿主 Sidebar 架构](research/phase-3.4-sidebar-architecture.md)
+- [Phase 3.4 实施报告](research/phase-3.4-report.md)
+
 ## 归档
 
 - [Phase 3.3 Graph Workbench](archive/phase-3.3-graph-workbench.md)

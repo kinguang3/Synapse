@@ -25,6 +25,15 @@ Python 3.11+。项目使用 hatchling 构建，源码位于 `src/synapse`。
 - ruff：`E/F/I/B/UP/SIM`，行宽 100
 - mypy：`check_untyped_defs = true`，`warn_unused_ignores = true`
 
+编辑器侧边栏使用 Node 原生测试，不依赖 npm 包：
+
+```powershell
+cd hosts
+npm test
+```
+
+`sidebar_dom.test.js` 需要本机安装 Microsoft Edge 或 Google Chrome；其他 Node 测试不需要浏览器。
+
 ## 测试地图
 
 | 文件 | 覆盖 |
@@ -39,6 +48,11 @@ Python 3.11+。项目使用 hatchling 构建，源码位于 `src/synapse`。
 | `test_config.py` | 配置优先级、home/config 路径、CLI 一致性 |
 | `test_text.py` | 文本切分、CJK、搜索查询构造 |
 | `test_mcp_server.py` | MCP 初始化、工具发现、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝、stdout 纯净性 |
+| `tests/frontend/gui_client.test.js` | 侧边栏 loopback 限制、Bearer 头、health、超时和错误映射 |
+| `tests/frontend/webview_html.test.js` | Webview CSP、nonce、外部资源、稳定 DOM ID 和令牌隔离 |
+| `tests/frontend/sidebar_core.test.js` | 共享 UI 的项目选择、格式化、分页和连接状态 helper |
+| `tests/frontend/vscode_extension.test.js` | 扩展 bootstrap、RPC、SecretStorage、路径逃逸拒绝和令牌不外泄 |
+| `tests/frontend/sidebar_dom.test.js` | 真实 Chromium/Edge 中的搜索、记忆、详情和状态渲染 |
 
 ## 运行单个测试
 
