@@ -1,8 +1,29 @@
-# Synapse
+<p align="center">
+  <img src="https://raw.githubusercontent.com/kinguang3/Synapse/main/docs/assets/synapse-icon.png" alt="Synapse" width="80">
+</p>
 
-English | [简体中文](https://github.com/kinguang3/Synapse/blob/main/README.zh-CN.md)
+<h3 align="center">Local knowledge for AI coding agents.</h3>
+<p align="center">Code graph, project context and persistent memory — all on your machine.</p>
 
-Synapse is a local-first MCP service that gives AI coding agents a structured code knowledge graph, project context retrieval, and persistent project memory. It stores projects, source code, documentation, explicit memories, and their relationships in SQLite, and exposes the same knowledge through MCP, CLI, and a local GUI.
+<p align="center">
+  <a href="#install-from-pypi"><b>Install</b></a> ·
+  <a href="#highlights">Features</a> ·
+  <a href="#mcp-server">MCP</a> ·
+  <a href="#common-commands">CLI</a> ·
+  <a href="#gui">GUI</a> ·
+  <a href="#documentation">Docs</a>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/synapse-knowledge/"><img src="https://img.shields.io/pypi/v/synapse-knowledge?label=PyPI&color=0ab887" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/synapse-knowledge/"><img src="https://img.shields.io/pypi/pyversions/synapse-knowledge?color=0ab887" alt="Python versions"></a>
+  <a href="https://github.com/kinguang3/Synapse/blob/main/LICENSE"><img src="https://img.shields.io/github/license/kinguang3/Synapse" alt="Apache-2.0 license"></a>
+  <a href="https://github.com/kinguang3/Synapse/stargazers"><img src="https://img.shields.io/github/stars/kinguang3/Synapse?color=0ab887" alt="GitHub stars"></a>
+</p>
+
+<p align="center"><sub><b>English</b> · <a href="https://github.com/kinguang3/Synapse/blob/main/README.zh-CN.md">简体中文</a></sub></p>
+
+**Local-first, open source, and yours to run.** One SQLite workspace shared by MCP, CLI and GUI. No cloud account required.
 
 ## Highlights
 
