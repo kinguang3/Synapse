@@ -2,7 +2,20 @@
 
 ## 1. 安装
 
-Windows PowerShell：
+从 PyPI 安装 CLI：
+
+```powershell
+uv tool install synapse-knowledge
+synapse version
+```
+
+只想运行 MCP Server 时可以不安装 CLI，直接使用 `uvx`：
+
+```powershell
+uvx --from synapse-knowledge synapse-mcp
+```
+
+从源码开发时使用 Windows PowerShell：
 
 ```powershell
 cd C:\path\to\Synapse
@@ -57,7 +70,7 @@ synapse search "ContextBuilder" --type class --json
 
 - `--project`：项目 ID、slug 或根路径。
 - `--limit`：1 到 50。
-- `--mode keyword|hybrid|semantic`：`semantic` 当前会降级。
+- `--mode keyword|hybrid`：`hybrid` 会结合词法与图关系。
 - `--type`：节点类型。
 - `--path-prefix`：路径前缀。
 - `--graph-depth`、`--relation`：图扩展控制。
@@ -77,9 +90,7 @@ synapse remember . "选中方案 A。" --type decision --tag architecture
 synapse recall "FTS5"
 ```
 
-记忆会作为 `memory` 节点写入图谱，可被普通搜索、召回和 Context 使用。MCP 中先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 按 `node_id` 读取完整正文和 tags。
-
-GUI API 的记忆列表支持 `memory_type`、`q`、`limit`（1-200）和 `offset`，返回的 `total` 是应用过滤后的准确数量。GUI Memory 页默认每页 20 条，支持关键词搜索、类型筛选、上一页/下一页，并显示当前范围与总页数；搜索词或类型变化会回到第一页。
+记忆会作为 `memory` 节点写入图谱，可被普通搜索、召回和 Context 使用。MCP 中先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 按 `node_id` 读取完整正文和 tags。GUI Memory 页支持关键词搜索、类型筛选和分页。
 
 ## 7. 生成上下文
 
@@ -103,14 +114,14 @@ synapse index . --workers 8     # 调整解析并发
 
 ## 9. 连接 MCP Client
 
-安装后可用 `synapse-mcp` 或 `python -m synapse.integrations.mcp` 启动本地 stdio MCP Server。以 Trae 的用户级 `mcp.json` 为例：
+推荐用 `uvx` 启动已发布包。以 Trae 的用户级 `mcp.json` 为例：
 
 ```json
 {
   "mcpServers": {
     "synapse": {
-      "command": "C:\\path\\to\\Synapse\\.venv\\Scripts\\synapse-mcp.exe",
-      "args": [],
+      "command": "uvx",
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"],
       "env": {
         "SYNAPSE_HOME": "C:\\path\\to\\synapse-home"
       }
@@ -119,17 +130,8 @@ synapse index . --workers 8     # 调整解析并发
 }
 ```
 
-先调用 `synapse_projects_list` 获取项目 ID 或 slug，再调用其他项目级工具。`synapse_remember` 会写入本地记忆；`synapse_search` 只接受 `keyword` / `hybrid`。详见 [MCP 文档](../reference/mcp.md)。
+从源码安装时也可以使用 `synapse-mcp` 或 `python -m synapse.integrations.mcp`。先调用 `synapse_projects_list` 获取项目 ID 或 slug，再调用其他项目级工具。`synapse_remember` 会写入本地记忆；`synapse_search` 只接受 `keyword` / `hybrid`。详见 [MCP 文档](../reference/mcp.md)。
 
 ## 10. 清理
 
 Synapse 不使用隐藏后台服务。删除项目数据可删除对应 SQLite 数据库；删除默认数据目录前请先确认没有需要保留的记忆。
-
-## 11. 验证
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests\test_memory_lifecycle.py tests\test_gui_api.py -q
-node --test tests\frontend\memory_paging.test.js
-```
-
-这些测试分别覆盖记忆过滤/分页/总数契约、GUI API 认证与错误映射，以及前端分页状态、范围计算和请求竞态判定。

@@ -1,50 +1,62 @@
 # Synapse
 
-English | [简体中文](README.zh-CN.md)
+English | [简体中文](https://github.com/kinguang3/Synapse/blob/main/README.zh-CN.md)
 
 Synapse is a local-first MCP service that gives AI coding agents a structured code knowledge graph, project context retrieval, and persistent project memory. It stores projects, source code, documentation, explicit memories, and their relationships in SQLite, and exposes the same knowledge through MCP, CLI, and a local GUI.
 
-## Status
+## Highlights
 
-Synapse is usable today as a local-first knowledge service:
-
-- Local knowledge engine with Python/Markdown parsing, SQLite FTS5, reference resolution, graph-expanded retrieval, and crash-safe indexing.
-- A local stdio MCP Server with 9 project-scoped tools for search, graph exploration, context, and memory.
-- A CLI covering project management, indexing, search, context, and the full memory loop.
-- An optional local GUI for graph exploration, search, memory browsing, context preview, and index status/trigger.
-- Memory APIs with type/query filters, server-side pagination, exact totals, and a 20-row GUI browser.
-- Capability boundaries are aligned: MCP, CLI, and GUI expose only `keyword` / `hybrid` retrieval.
+- Local-first SQLite knowledge graph with Python/Markdown parsing, FTS5 search, Chinese indexing, reference resolution, graph-expanded retrieval, and crash-safe indexing.
+- Local stdio MCP server with 9 project-scoped tools for search, graph exploration, context, and memory.
+- CLI for project management, indexing, search, context, and the full memory workflow.
+- Optional local GUI for graph exploration, search, memory browsing, context preview, and index management.
+- `keyword` and `hybrid` retrieval only; no fake semantic mode.
+- Project-level locking prevents concurrent indexing of the same project; interrupted runs recover on the next scan.
 
 Not yet implemented: file watching, embedding/vector retrieval, memory editing/versioning, and cloud sync.
 
-`semantic` is not true vector semantic retrieval and is not exposed by any entrypoint; there is no embedding model or vector index yet.
-
-Known limitations: `synapse_recall` returns summaries and snippets, so callers must use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based rather than semantic; and the knowledge graph does not fully model constructor parameter injection. See [Limitations](docs/reference/limitations.md).
-
-## Features
-
-- Python AST parsing (tree-sitter) and structural Markdown parsing.
-- File-level node fallback for other common text formats.
-- SQLite + FTS5 full-text search, including Chinese unigram/bigram indexing.
-- Code reference resolution, cross-file relationships, and graph-expanded retrieval.
-- Query-aware project context that ranks relevant modules, covers distinct paths, and trims optional sections to a token budget.
-- Explicit memory types: `fact`, `experience`, `decision`, `preference`, and `summary`.
-- Memory list API with project/type/query filters, `limit` / `offset` pagination, and exact filtered totals.
-- GUI Memory browser with 20-row server-side pages, exact range/total display, keyword and type filters, and stale-response protection.
-- Project-level FileLock to prevent concurrent indexing of the same project.
-- After a process crash, interrupted index runs are marked, unfinished tasks are cancelled, and the next scan safely rebuilds.
-- Local stdio MCP Server that reuses the same Core, configuration, and data directory.
-- MCP exposes only `keyword` / `hybrid` retrieval by default, rather than presenting unavailable semantic retrieval as implemented.
-- MCP tools enforce project scope and validate node ownership to prevent cross-project reads.
-- Local GUI workspace for graph exploration, search, memory inspection, context preview, and index status/trigger; it talks to the same Core and never opens SQLite directly.
+Known limitations: `synapse_recall` returns summaries and snippets, so use `synapse_memory_get` for full memory content and tags; context ranking is lexical/graph-based; and constructor parameter injection is not fully modeled. See [Limitations](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md).
 
 ## Requirements
 
 - Python 3.11+
+- [uv](https://docs.astral.sh/uv/) for `uvx` and `uv tool` installation
 - Windows 10/11, Linux, or macOS
 - SQLite with FTS5 enabled (usually available in the SQLite bundled with Python)
 
-## Quick start (Windows PowerShell)
+## Install from PyPI
+
+Use `uvx` to run the MCP server without a global install:
+
+```powershell
+uvx --from synapse-knowledge synapse-mcp
+```
+
+For MCP clients, use this configuration:
+
+```json
+{
+  "mcpServers": {
+    "synapse": {
+      "command": "uvx",
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"]
+    }
+  }
+}
+```
+
+Install the CLI once, then register and index a project:
+
+```powershell
+uv tool install synapse-knowledge
+synapse config init
+synapse doctor
+synapse projects register . --index
+```
+
+`uvx` uses an isolated cache and does not modify your project. Projects, configuration, and memories stay under `SYNAPSE_HOME` or the platform default directory, so package upgrades do not delete data.
+
+## From source (Windows PowerShell)
 
 ```powershell
 cd C:\path\to\Synapse
@@ -52,35 +64,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 python -m pip install -e ".[dev]"
-```
-
-Initialize configuration and check the environment:
-
-```powershell
 synapse config init
-synapse doctor
-```
-
-Register and index a project:
-
-```powershell
 synapse projects register . --index
-synapse projects status
-```
-
-Search and build context:
-
-```powershell
-synapse search "ContextBuilder" --limit 5
-synapse context . --max-tokens 1200
-synapse context . --query "retrieval module" --max-tokens 700
-```
-
-Store and recall explicit memories:
-
-```powershell
-synapse remember . "Use SQLite FTS5 for local retrieval." --type decision --title "Use FTS5"
-synapse recall "FTS5" --limit 5
 ```
 
 Query, indexing, memory, and project-management commands support `--json` for agents and scripts; `version` prints plain text only.
@@ -107,28 +92,9 @@ synapse version
 
 ## MCP Server
 
-After installation, use the `synapse-mcp` entry point or start the server as a module:
+The recommended configuration is shown in [Install from PyPI](#install-from-pypi). Add `env.SYNAPSE_HOME` only when you need a custom data directory.
 
-```powershell
-synapse-mcp
-python -m synapse.integrations.mcp
-```
-
-This is a local stdio MCP Server and does not listen on a port. Example configuration for an external agent:
-
-```json
-{
-  "mcpServers": {
-    "synapse": {
-      "command": "C:\\path\\to\\Synapse\\.venv\\Scripts\\synapse-mcp.exe",
-      "args": [],
-      "env": {
-        "SYNAPSE_HOME": "C:\\path\\to\\synapse-home"
-      }
-    }
-  }
-}
-```
+For a source checkout, use `synapse-mcp` or `python -m synapse.integrations.mcp`. This is a local stdio server and does not listen on a port.
 
 Available tools:
 
@@ -142,7 +108,7 @@ Available tools:
 - `synapse_recall`
 - `synapse_memory_get`
 
-All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](docs/reference/mcp.md).
+All project-scoped tools require a registered project. `synapse_remember` writes to the local SQLite database; the other tools are read-only. Use `synapse_recall` to find a memory, then `synapse_memory_get` with its `node_id` to read the full content and tags. stdout carries only MCP JSON-RPC, while logs go to stderr. See the [MCP documentation](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md).
 
 ## GUI
 
@@ -168,20 +134,20 @@ The default directory is determined by `platformdirs`:
 - Database: `<home>\synapse.db`
 - Lock files: `<home>\locks\index-<project_id>.lock`
 
-Override these paths with `SYNAPSE_HOME` and `SYNAPSE_CONFIG`. See the [configuration documentation](docs/guides/configuration.md).
+Override these paths with `SYNAPSE_HOME` and `SYNAPSE_CONFIG`. See the [configuration documentation](https://github.com/kinguang3/Synapse/blob/main/docs/guides/configuration.md).
 
 ## Documentation
 
-The detailed documentation is currently written in Chinese. Start from the [documentation index](docs/README.md).
+The detailed documentation is currently written in Chinese. Start from the [documentation index](https://github.com/kinguang3/Synapse/blob/main/docs/README.md).
 
-- [Getting started](docs/guides/getting-started.md)
-- [Configuration](docs/guides/configuration.md)
-- [Development and testing](docs/guides/development.md)
-- [Architecture](docs/architecture/overview.md)
-- [CLI](docs/reference/cli.md)
-- [MCP Server](docs/reference/mcp.md)
-- [Data model](docs/reference/data-model.md)
-- [Limitations](docs/reference/limitations.md)
+- [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md)
+- [Configuration](https://github.com/kinguang3/Synapse/blob/main/docs/guides/configuration.md)
+- [Development and testing](https://github.com/kinguang3/Synapse/blob/main/docs/guides/development.md)
+- [Architecture](https://github.com/kinguang3/Synapse/blob/main/docs/architecture/overview.md)
+- [CLI](https://github.com/kinguang3/Synapse/blob/main/docs/reference/cli.md)
+- [MCP Server](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md)
+- [Data model](https://github.com/kinguang3/Synapse/blob/main/docs/reference/data-model.md)
+- [Limitations](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md)
 
 ## Development
 

@@ -4,81 +4,59 @@ Synapse 提供一个本地 stdio MCP Server，让外部 AI 编码代理复用 CL
 
 ## 启动
 
-安装后有两个等价入口：
+推荐直接运行 PyPI 发行包，无需全局安装：
+
+```powershell
+uvx --from synapse-knowledge synapse-mcp
+```
+
+Synapse 的发行包名是 `synapse-knowledge`；`synapse-mcp` 名称已被其他项目占用，但 console script 名称仍是 `synapse-mcp`。固定版本时使用 `uvx --from synapse-knowledge==<version> synapse-mcp`。
+
+从源码运行时，使用以下任一入口：
 
 ```powershell
 synapse-mcp
 python -m synapse.integrations.mcp
 ```
 
-Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC。日志和错误信息写入 stderr。不要在这两个入口外层再包装会向 stdout 打印横幅、进度条或普通文本的脚本。
+Server 从 stdin 读取 JSON-RPC，向 stdout 写 JSON-RPC，日志写入 stderr。不要在入口外层包装会向 stdout 打印横幅、进度条或普通文本的脚本。
 
-## 计划中的 uvx 启动（尚未发布）
+## 注册项目
 
-Synapse 当前尚未发布到 PyPI。发行包名准备使用 `synapse-knowledge`；`synapse-mcp` 名称已被其他项目占用，但 console script 名称仍保持 `synapse-mcp`。发布后可使用：
+使用项目级工具前需要先注册并索引项目：
 
 ```powershell
-uvx --from synapse-knowledge synapse-mcp
+uv tool install synapse-knowledge
+synapse config init
+synapse doctor
+synapse projects register . --index
 ```
 
-固定版本时使用 `uvx --from synapse-knowledge==<version> synapse-mcp`。`uvx` 只缓存 Python 环境，项目与记忆仍保存在 `SYNAPSE_HOME` 或平台默认数据目录中，升级包不会删除数据。
+也可以直接用 `uvx` 执行一次性 CLI 命令：
 
-MCP Client 配置示例：
+```powershell
+uvx --from synapse-knowledge synapse projects register . --index
+```
+
+## 客户端配置
+
+Trae 或其他 stdio Client 使用同一份配置：
 
 ```json
 {
   "mcpServers": {
     "synapse": {
       "command": "uvx",
-      "args": ["--from", "synapse-knowledge", "synapse-mcp"],
-      "env": {
-        "SYNAPSE_HOME": "<Synapse home>"
-      }
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"]
     }
   }
 }
 ```
 
-## 配置
-
-### Trae（用户级 `mcp.json`）
-
-```json
-{
-  "mcpServers": {
-    "synapse": {
-      "command": "C:\\path\\to\\Synapse\\.venv\\Scripts\\synapse-mcp.exe",
-      "args": [],
-      "env": {
-        "SYNAPSE_HOME": "C:\\path\\to\\synapse-home"
-      }
-    }
-  }
-}
-```
-
-- `command` 使用绝对路径，路径中不能有需要 shell 解析的空格参数。
-- `SYNAPSE_HOME` 应与 CLI 使用同一目录，否则 MCP 看到的是另一套项目与记忆数据。
+- 需要自定义数据目录时添加 `env.SYNAPSE_HOME`，并与 CLI 使用同一目录。
 - 省略 `env` 时使用平台默认 home。
+- 源码安装时，将 `command` 改成虚拟环境中 `synapse-mcp` 的绝对路径，或改成 `python` 并设置 `args` 为 `["-m", "synapse.integrations.mcp"]`。
 - 修改配置后重启 IDE 或重新加载 MCP Server。
-
-### 通用 stdio Client
-
-```json
-{
-  "mcpServers": {
-    "synapse": {
-      "command": "python",
-      "args": ["-m", "synapse.integrations.mcp"],
-      "env": {
-        "SYNAPSE_HOME": "<Synapse home>"
-      }
-    }
-  }
-}
-```
-
-如果 `python` 不是安装 Synapse 的解释器，请改成虚拟环境中的绝对路径。
 
 ## 工具
 
@@ -154,8 +132,6 @@ MCP Client 配置示例：
 ```
 
 测试覆盖初始化、`tools/list`、schema、错误映射、业务调用、完整记忆读取、记忆持久化、跨项目拒绝和 stdout 纯净性。
-
-Phase 2.1.1 已在真实 Trae CN `3.4.16` 对话中验证 8 个工具的发现和 A-F 场景调用。Phase 2.2.1 新增 `synapse_memory_get`，并在真实 Trae 中验证召回后读取完整正文。Phase 2.2.2 在真实 Trae 中验证 9 个工具、query-aware context、overview 结构选择和 token 预算裁剪。
 
 ## 当前限制
 

@@ -1,50 +1,62 @@
 # Synapse
 
-[English](README.md) | 简体中文
+[English](https://github.com/kinguang3/Synapse/blob/main/README.md) | 简体中文
 
 Synapse 是一个本地优先的 MCP 服务，为 AI Coding Agents 提供结构化的代码知识图谱、项目上下文检索和持久化项目记忆。它用 SQLite 保存项目、源码、文档、显式记忆和它们之间的关系，并通过 MCP、CLI 和本地 GUI 暴露同一份知识。
 
-## 当前状态
+## 核心特性
 
-Synapse 目前可作为本地优先的知识服务使用：
-
-- 本地知识引擎：Python/Markdown 解析、SQLite FTS5、引用解析、图扩展检索和崩溃安全索引。
+- 本地优先的 SQLite 知识图谱：Python/Markdown 解析、FTS5 检索、中文索引、引用解析、图扩展检索和崩溃安全索引。
 - 本地 stdio MCP Server：提供 9 个项目作用域工具，覆盖检索、图探索、上下文和记忆。
-- CLI：覆盖项目管理、索引、检索、上下文以及完整记忆读取闭环。
-- 可选本地 GUI：支持图探索、检索、记忆浏览、上下文预览和索引状态/触发。
-- 记忆 API：支持类型/查询过滤、服务端分页和准确总数；GUI Memory 页每页 20 条。
-- 能力口径已对齐：MCP、CLI 与 GUI 只暴露 `keyword` / `hybrid` 检索。
+- CLI：覆盖项目管理、索引、检索、上下文和完整记忆流程。
+- 可选本地 GUI：支持图探索、检索、记忆浏览、上下文预览和索引管理。
+- 只提供 `keyword` 与 `hybrid` 检索，不伪装不可用的语义模式。
+- 项目级锁避免同一项目并发索引；中断的索引会在下次扫描时安全恢复。
 
 尚未实现：文件监听、Embedding/向量检索、记忆编辑/版本管理、云同步。
 
-`semantic` 不是真正的语义向量检索，也不再由任何入口暴露；当前没有 Embedding 模型或向量索引。
-
-已知限制包括：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需要通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系，而不是语义向量；知识图谱尚未完整建模构造函数参数注入关系。详见 [限制与边界](docs/reference/limitations.md)。
-
-## 功能
-
-- Python AST 解析（tree-sitter）与 Markdown 结构解析。
-- 其他常见文本格式以文件级节点兜底。
-- SQLite + FTS5 全文检索，支持中文 unigram/bigram。
-- 代码引用解析、跨文件关系、图扩展检索。
-- 查询感知的项目上下文：优先选择相关模块、覆盖不同路径，并按 token 预算裁剪可选部分。
-- 显式记忆：`fact`、`experience`、`decision`、`preference`、`summary`。
-- 记忆列表 API 支持项目/类型/查询过滤、`limit` / `offset` 分页，并返回过滤后的准确总数。
-- GUI 记忆浏览器使用每页 20 条的后端分页，显示准确范围/总数，支持关键词与类型筛选，并防止旧请求覆盖新结果。
-- 项目级 FileLock，避免同一项目被多个进程同时索引。
-- 进程崩溃后会标记中断的索引运行、取消未完成任务，并由下一次扫描安全重建。
-- 本地 stdio MCP Server，复用同一套 Core、配置和数据目录。
-- MCP 默认只暴露 `keyword` / `hybrid` 检索，不把不可用的语义检索伪装成已实现能力。
-- MCP 工具强制项目范围，并校验节点归属，避免跨项目读取。
-- 本地 GUI 工作台：图谱探索、检索、记忆查看、上下文预览和索引状态/触发；直接复用 Core，不直连 SQLite。
+已知限制：`synapse_recall` 只返回 summary 和 snippet，完整正文与 tags 需通过 `synapse_memory_get` 读取；上下文排序基于词法与图关系；构造函数参数注入尚未完整建模。详见 [限制与边界](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md)。
 
 ## 环境要求
 
 - Python 3.11+
+- [uv](https://docs.astral.sh/uv/)（用于 `uvx` 和 `uv tool` 安装）
 - Windows 10/11、Linux 或 macOS
 - SQLite 需启用 FTS5（随 Python 自带 SQLite 通常可用）
 
-## 快速开始（Windows PowerShell）
+## 从 PyPI 安装
+
+使用 `uvx` 直接运行 MCP Server，无需全局安装：
+
+```powershell
+uvx --from synapse-knowledge synapse-mcp
+```
+
+MCP Client 配置：
+
+```json
+{
+  "mcpServers": {
+    "synapse": {
+      "command": "uvx",
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"]
+    }
+  }
+}
+```
+
+安装一次 CLI，然后注册并索引项目：
+
+```powershell
+uv tool install synapse-knowledge
+synapse config init
+synapse doctor
+synapse projects register . --index
+```
+
+`uvx` 使用隔离缓存，不会修改当前项目。项目、配置和记忆保存在 `SYNAPSE_HOME` 或平台默认目录中，升级包不会删除数据。
+
+## 从源码运行（Windows PowerShell）
 
 ```powershell
 cd C:\path\to\Synapse
@@ -52,35 +64,8 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 python -m pip install -e ".[dev]"
-```
-
-初始化配置并检查环境：
-
-```powershell
 synapse config init
-synapse doctor
-```
-
-注册并索引一个项目：
-
-```powershell
 synapse projects register . --index
-synapse projects status
-```
-
-检索与读取上下文：
-
-```powershell
-synapse search "ContextBuilder" --limit 5
-synapse context . --max-tokens 1200
-synapse context . --query "retrieval 模块" --max-tokens 700
-```
-
-存储和召回显式记忆：
-
-```powershell
-synapse remember . "Use SQLite FTS5 for local retrieval." --type decision --title "Use FTS5"
-synapse recall "FTS5" --limit 5
 ```
 
 查询、索引、记忆和项目管理命令都支持 `--json`，便于 Agent 或脚本调用；`version` 仅输出纯文本。
@@ -107,28 +92,9 @@ synapse version
 
 ## MCP Server
 
-安装后提供 `synapse-mcp` 入口，也可以使用模块方式启动：
+推荐配置见 [从 PyPI 安装](#从-pypi-安装)。只有需要自定义数据目录时才添加 `env.SYNAPSE_HOME`。
 
-```powershell
-synapse-mcp
-python -m synapse.integrations.mcp
-```
-
-这是本地 stdio MCP Server，不监听端口。外部 Agent 配置示例：
-
-```json
-{
-  "mcpServers": {
-    "synapse": {
-      "command": "C:\\path\\to\\Synapse\\.venv\\Scripts\\synapse-mcp.exe",
-      "args": [],
-      "env": {
-        "SYNAPSE_HOME": "C:\\path\\to\\synapse-home"
-      }
-    }
-  }
-}
-```
+从源码运行时，使用 `synapse-mcp` 或 `python -m synapse.integrations.mcp`。这是本地 stdio Server，不监听端口。
 
 可用工具：
 
@@ -142,7 +108,7 @@ python -m synapse.integrations.mcp
 - `synapse_recall`
 - `synapse_memory_get`
 
-所有项目级工具都必须传已注册项目。`synapse_remember` 会写入本地 SQLite，其他工具只读。推荐先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 读取完整正文和 tags。stdout 只输出 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](docs/reference/mcp.md)。
+所有项目级工具都必须传已注册项目。`synapse_remember` 会写入本地 SQLite，其他工具只读。推荐先用 `synapse_recall` 找到记忆，再用 `synapse_memory_get` 读取完整正文和 tags。stdout 只输出 MCP JSON-RPC，日志写入 stderr。详见 [MCP 文档](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md)。
 
 ## GUI
 
@@ -168,20 +134,20 @@ python -m synapse.integrations.gui --port 8765
 - 数据库：`<home>\synapse.db`
 - 锁文件：`<home>\locks\index-<project_id>.lock`
 
-可以通过 `SYNAPSE_HOME`、`SYNAPSE_CONFIG` 覆盖。详见 [配置文档](docs/guides/configuration.md)。
+可以通过 `SYNAPSE_HOME`、`SYNAPSE_CONFIG` 覆盖。详见 [配置文档](https://github.com/kinguang3/Synapse/blob/main/docs/guides/configuration.md)。
 
 ## 文档
 
-从 [文档索引](docs/README.md) 开始阅读。
+从 [文档索引](https://github.com/kinguang3/Synapse/blob/main/docs/README.md) 开始阅读。
 
-- [快速开始](docs/guides/getting-started.md)
-- [配置](docs/guides/configuration.md)
-- [开发与测试](docs/guides/development.md)
-- [架构](docs/architecture/overview.md)
-- [CLI](docs/reference/cli.md)
-- [MCP Server](docs/reference/mcp.md)
-- [数据模型](docs/reference/data-model.md)
-- [限制与边界](docs/reference/limitations.md)
+- [快速开始](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md)
+- [配置](https://github.com/kinguang3/Synapse/blob/main/docs/guides/configuration.md)
+- [开发与测试](https://github.com/kinguang3/Synapse/blob/main/docs/guides/development.md)
+- [架构](https://github.com/kinguang3/Synapse/blob/main/docs/architecture/overview.md)
+- [CLI](https://github.com/kinguang3/Synapse/blob/main/docs/reference/cli.md)
+- [MCP Server](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md)
+- [数据模型](https://github.com/kinguang3/Synapse/blob/main/docs/reference/data-model.md)
+- [限制与边界](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md)
 
 ## 开发
 
