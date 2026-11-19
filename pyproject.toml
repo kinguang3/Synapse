@@ -6,7 +6,25 @@ build-backend = "hatchling.build"
 name = "synapse-knowledge"
 version = "0.1.0"
 description = "Local-first MCP service for code knowledge graphs, project context and persistent project memory"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "King", email = "548635581@qq.com" }]
 requires-python = ">=3.11"
+keywords = ["mcp", "ai", "coding-agents", "knowledge-graph", "code-search", "sqlite"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Text Processing :: Indexing",
+]
 dependencies = [
   "pydantic>=2.7,<3",
   "pydantic-settings>=2.2,<3",
@@ -38,6 +56,12 @@ gui = [
 [project.scripts]
 synapse = "synapse.integrations.cli.main:app"
 synapse-mcp = "synapse.integrations.mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/kinguang3/Synapse"
+Repository = "https://github.com/kinguang3/Synapse"
+Documentation = "https://github.com/kinguang3/Synapse/tree/main/docs"
+Issues = "https://github.com/kinguang3/Synapse/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/synapse"]
