@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "synapse-knowledge"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local-first MCP service for code knowledge graphs, project context and persistent project memory"
 readme = "README.md"
 license = { text = "Apache-2.0" }
