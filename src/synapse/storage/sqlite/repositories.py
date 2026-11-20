@@ -230,10 +230,6 @@ class ProjectRepository:
         ).fetchall()
         return [_project_from_row(row) for row in rows]
 
-    def delete(self, project_id: str) -> None:
-        with self._database.transaction() as connection:
-            connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
-
     def touch_indexed(self, project_id: str, timestamp: str) -> None:
         with self._database.transaction() as connection:
             connection.execute(
@@ -335,20 +331,6 @@ class SourceRepository:
                 ),
             )
 
-    def update_uri(
-        self,
-        source_id: str,
-        uri: str,
-        timestamp: str,
-        *,
-        connection: sqlite3.Connection | None = None,
-    ) -> None:
-        with _write_scope(self._database, connection) as managed:
-            managed.execute(
-                "UPDATE sources SET uri=?, updated_at=? WHERE id=?",
-                (uri, timestamp, source_id),
-            )
-
     def update_stat(
         self,
         source_id: str,
@@ -408,14 +390,6 @@ class SourceRepository:
                     source_id,
                 ),
             )
-
-    def count_by_project(self, project_id: str) -> int:
-        row = self._database.connect().execute(
-            "SELECT COUNT(*) AS count FROM sources WHERE project_id=? AND status='active'",
-            (project_id,),
-        ).fetchone()
-        return int(row["count"])
-
 
 class NodeRepository:
     def __init__(self, database: Database) -> None:
@@ -639,20 +613,6 @@ class NodeRepository:
             (project_id, path),
         ).fetchone()
         return _node_from_row(row) if row else None
-
-    def find_symbols_by_name(
-        self, project_id: str, name: str, *, limit: int = 10
-    ) -> list[KnowledgeNode]:
-        rows = self._database.connect().execute(
-            """
-            SELECT * FROM nodes
-            WHERE project_id=? AND status='active'
-              AND (qualified_name_norm=? OR qualified_name_norm LIKE ?)
-            LIMIT ?
-            """,
-            (project_id, name, f"%.{name}", limit),
-        ).fetchall()
-        return [_node_from_row(row) for row in rows]
 
     def top_by_salience(
         self,
@@ -904,13 +864,6 @@ class NodeRepository:
                 "path_rows": int(meta["path_rows"]) if meta else 0,
             },
         }
-
-    def get_by_source(self, source_id: str) -> list[KnowledgeNode]:
-        rows = self._database.connect().execute(
-            "SELECT * FROM nodes WHERE source_id=? ORDER BY start_line", (source_id,)
-        ).fetchall()
-        return [_node_from_row(row) for row in rows]
-
 
 class RelationRepository:
     def __init__(self, database: Database) -> None:
@@ -1230,20 +1183,6 @@ class RefRepository:
             (project_id,),
         ).fetchall()
         return [dict(row) for row in rows]
-
-    def mark_resolved(
-        self,
-        ref_id: int,
-        resolved_node_id: str | None,
-        timestamp: str,
-        *,
-        connection: sqlite3.Connection | None = None,
-    ) -> None:
-        with _write_scope(self._database, connection) as managed:
-            managed.execute(
-                "UPDATE unresolved_refs SET resolved_node_id=?, updated_at=? WHERE id=?",
-                (resolved_node_id, timestamp, ref_id),
-            )
 
     def mark_many_resolved(
         self,

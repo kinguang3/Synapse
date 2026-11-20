@@ -6,7 +6,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from synapse.errors import StorageError
 from synapse.storage.sqlite.migrations import MigrationRunner
 
 
@@ -80,18 +79,6 @@ class Database:
             return [str(row[0]) for row in rows] or ["ok"]
         except sqlite3.DatabaseError as exc:
             return [str(exc)]
-
-    def backup(self, destination: str | Path) -> Path:
-        target = Path(destination).expanduser().resolve()
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists():
-            raise StorageError(f"备份目标已存在: {target}")
-        try:
-            self.connect().execute("VACUUM INTO ?", (str(target),))
-        except sqlite3.DatabaseError:
-            escaped = str(target).replace("'", "''")
-            self.connect().execute(f"VACUUM INTO '{escaped}'")
-        return target
 
     def close(self) -> None:
         connection = getattr(self._local, "connection", None)

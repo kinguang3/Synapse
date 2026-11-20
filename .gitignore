@@ -13,6 +13,9 @@ build/
 .synapse/
 .screenshots/
 .tmp*/
+/.pytest-run/
+/pytest-run/
+/tmpbase/
 *.db
 *.db-wal
 *.db-shm

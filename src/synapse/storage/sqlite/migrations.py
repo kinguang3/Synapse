@@ -53,10 +53,3 @@ class MigrationRunner:
             )
             applied_now.append(version)
         return applied_now
-
-    def applied_versions(self) -> list[int]:
-        connection = self._database.connect()
-        rows = connection.execute(
-            "SELECT version FROM schema_migrations ORDER BY version"
-        ).fetchall()
-        return [int(row["version"]) for row in rows]
