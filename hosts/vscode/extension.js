@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const vscode = require('vscode');
@@ -16,6 +17,38 @@ const VIEW_ID = 'synapse.companion.sidebar';
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function runtimePythonCandidates() {
+  const candidates = [];
+  const configuredHome = String(process.env.SYNAPSE_HOME || '').trim();
+  if (configuredHome) {
+    candidates.push(path.join(configuredHome, 'runtime', 'Scripts', 'python.exe'));
+    candidates.push(path.join(configuredHome, 'runtime', 'bin', 'python'));
+  }
+  if (process.platform === 'win32') {
+    if (process.env.LOCALAPPDATA) {
+      candidates.push(
+        path.join(process.env.LOCALAPPDATA, 'Synapse', 'Synapse', 'runtime', 'Scripts', 'python.exe'),
+      );
+    }
+  } else if (process.platform === 'darwin') {
+    candidates.push(
+      path.join(
+        os.homedir(),
+        'Library',
+        'Application Support',
+        'Synapse',
+        'runtime',
+        'bin',
+        'python',
+      ),
+    );
+  } else {
+    const dataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+    candidates.push(path.join(dataHome, 'Synapse', 'runtime', 'bin', 'python'));
+  }
+  return candidates;
 }
 
 function isAuthError(error) {
@@ -175,7 +208,7 @@ class CompanionController {
     try {
       const baseUrl = this.serverUrl();
       let healthy = await this.probe(baseUrl);
-      if (!healthy && opts.allowStart && this.configuration().get('autoStartServer', false)) {
+      if (!healthy && opts.allowStart && this.configuration().get('autoStartServer', true)) {
         try {
           await this.ensureServer();
           healthy = await this.probe(baseUrl);
@@ -242,6 +275,10 @@ class CompanionController {
     if (configured) return configured;
     const fromEnvironment = String(process.env.SYNAPSE_PYTHON || '').trim();
     if (fromEnvironment) return fromEnvironment;
+
+    for (const candidate of runtimePythonCandidates()) {
+      if (candidate && fs.existsSync(candidate)) return candidate;
+    }
 
     const folders = vscode.workspace.workspaceFolders || [];
     const candidates = [

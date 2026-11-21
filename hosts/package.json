@@ -95,12 +95,12 @@
         "synapse.pythonPath": {
           "type": "string",
           "default": "",
-          "description": "Python executable used to start the local Synapse service. Leave empty to use the workspace .venv or python on PATH."
+          "description": "Python executable used to start the local Synapse service. Leave empty to use the managed Synapse runtime, a workspace .venv, or python on PATH."
         },
         "synapse.autoStartServer": {
           "type": "boolean",
-          "default": false,
-          "description": "Start the local Synapse GUI service when the sidebar cannot reach it."
+          "default": true,
+          "description": "Start the local Synapse GUI service automatically when the sidebar cannot reach it."
         },
         "synapse.requestTimeoutMs": {
           "type": "number",

@@ -1,8 +1,20 @@
 # 快速开始
 
-## 1. 安装
+## 推荐：一键安装（Windows）
 
-从 PyPI 安装 CLI：
+前置条件：Windows 10/11、PowerShell 5.1+、[uv](https://docs.astral.sh/uv/)，以及 VS Code 或 Trae。
+
+```powershell
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 | iex
+```
+
+安装器会创建托管运行时，安装 CLI、MCP、GUI 依赖和编辑器侧边栏，生成 `%LOCALAPPDATA%\Synapse\Synapse\mcp.json`，并把运行时命令目录加入用户 `PATH`。
+
+安装完成后重启编辑器和终端。打开 Synapse 侧边栏时，本地 GUI 服务会自动启动。把生成的 MCP 配置加入客户端即可。
+
+## 1. 手动安装
+
+如果不想使用一键安装，可以从 PyPI 安装 CLI：
 
 ```powershell
 uv tool install synapse-knowledge
@@ -134,20 +146,15 @@ synapse index . --workers 8     # 调整解析并发
 
 ## 10. 安装编辑器侧边栏
 
-侧边栏以独立 VSIX 分发。Windows PowerShell 一键安装：
+推荐直接使用一键安装。也可以手动安装 VSIX：
 
 ```powershell
-irm https://github.com/kinguang3/Synapse/releases/latest/download/install-sidebar.ps1 | iex
-```
-
-脚本会下载对应版本 VSIX，并安装到检测到的 VS Code、VS Code Insiders、Trae CN 或 Trae。限定编辑器或手动安装：
-
-```powershell
-.\scripts\install-sidebar.ps1 -Editor code
 code --install-extension .\synapse-companion-0.1.1.vsix
 ```
 
-侧边栏需要本地 GUI API。安装后可在扩展中运行 `Synapse: Start Local Service`，或按项目 README 的 GUI 章节启动服务。默认不会自动启动本地服务；需要时启用 `synapse.autoStartServer`。
+Trae CN 使用 `trae-cn --install-extension .\synapse-companion-0.1.1.vsix`。安装后重启编辑器，从活动栏打开 Synapse。
+
+侧边栏默认自动启动本地 GUI 服务。如果关闭了 `synapse.autoStartServer`，可运行 `Synapse: Start Local Service` 手动启动。
 
 ## 11. 清理
 

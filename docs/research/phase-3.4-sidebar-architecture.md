@@ -134,7 +134,7 @@ connecting -> connected
 - 没有令牌时返回 `auth-required`，UI 显示“设置令牌”。
 - 服务未运行时返回 `offline`，UI 显示“启动服务”。
 - `startServer` 先生成/读取令牌，再以环境变量传入子进程。
-- `autoStartServer` 默认关闭；启用后只在无法连接时尝试启动。
+- `autoStartServer` 默认开启；只在无法连接时尝试启动，可在设置中关闭。
 - 服务启动后轮询 health，最多约 15 秒；失败时终止子进程并返回稳定错误。
 
 项目选择：
