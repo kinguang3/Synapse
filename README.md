@@ -59,9 +59,51 @@ synapse projects register . --index
 
 4. Add the generated `mcp.json` entry to your MCP client.
 
-If the service was stopped manually, run `Synapse: Start Local Service`. To disable automatic startup, set `synapse.autoStartServer` to `false`.
+Opening the sidebar starts the service only when it is not already healthy, then waits for the health check before loading projects. If it still shows offline, run `Synapse: Start Local Service` and check the Synapse output channel. To disable automatic startup, set `synapse.autoStartServer` to `false`.
 
 The MCP server is local stdio and is started by your MCP client, not by the sidebar.
+
+## Manual GUI and custom paths
+
+### Start the GUI manually
+
+The sidebar starts the GUI automatically. To use the browser UI instead, run this for a default install:
+
+```powershell
+& "$env:LOCALAPPDATA\Synapse\Synapse\runtime\Scripts\python.exe" -m synapse.integrations.gui
+```
+
+If you set a custom `SYNAPSE_HOME`, replace the path with `<SYNAPSE_HOME>\runtime\Scripts\python.exe`.
+
+Open `http://127.0.0.1:8765/` and enter the token printed in the terminal. For a fixed token, set it before starting:
+
+```powershell
+$env:SYNAPSE_GUI_TOKEN = "your-long-token"
+& "$env:LOCALAPPDATA\Synapse\Synapse\runtime\Scripts\python.exe" -m synapse.integrations.gui
+```
+
+### Use a custom path
+
+The simplest way is to set `SYNAPSE_HOME` before the one-command install:
+
+```powershell
+$env:SYNAPSE_HOME = "D:\SynapseData"
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 | iex
+```
+
+The runtime, database, and `mcp.json` all go under `D:\SynapseData`. Set the same `SYNAPSE_HOME` when starting the GUI or using the CLI. For permanent use, make it a user environment variable and reopen the terminal.
+
+To change only the runtime directory, download the installer and pass `-RuntimePath`:
+
+```powershell
+$installer = Join-Path $env:TEMP "synapse-install.ps1"
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 -OutFile $installer
+& $installer -RuntimePath "D:\Synapse\runtime"
+```
+
+If the runtime is outside `<SYNAPSE_HOME>\runtime`, set `synapse.pythonPath` in the editor to `<runtime>\Scripts\python.exe` so the sidebar can auto-start it.
+
+Other options: `-Editor`, `-VsixPath`, `-UvPath`, `-Version`, `-NoPath`, `-Force`, `-DryRun`.
 
 ## Use without the sidebar
 

@@ -59,9 +59,51 @@ synapse projects register . --index
 
 4. 把生成的 `mcp.json` 配置加入你的 MCP 客户端。
 
-如果服务被手动停止，运行 `Synapse: Start Local Service`。如需关闭自动启动，将 `synapse.autoStartServer` 设为 `false`。
+打开侧边栏时，如果服务未运行或健康检查失败，扩展会启动服务并等待健康检查通过，再加载项目。如果仍显示离线，运行 `Synapse: Start Local Service` 并查看 Synapse 输出面板。如需关闭自动启动，将 `synapse.autoStartServer` 设为 `false`。
 
 MCP Server 是本地 stdio 服务，由 MCP 客户端启动，不由侧边栏管理。
+
+## 手动启动 GUI 与自定义路径
+
+### 手动启动 GUI
+
+侧边栏会自动启动 GUI。默认安装时，要使用浏览器界面可以执行：
+
+```powershell
+& "$env:LOCALAPPDATA\Synapse\Synapse\runtime\Scripts\python.exe" -m synapse.integrations.gui
+```
+
+如果设置了自定义 `SYNAPSE_HOME`，把路径换成 `<SYNAPSE_HOME>\runtime\Scripts\python.exe`。
+
+打开 `http://127.0.0.1:8765/`，填入终端打印的令牌。想固定令牌，先设置再启动：
+
+```powershell
+$env:SYNAPSE_GUI_TOKEN = "your-long-token"
+& "$env:LOCALAPPDATA\Synapse\Synapse\runtime\Scripts\python.exe" -m synapse.integrations.gui
+```
+
+### 自定义路径
+
+最简单的方式：先设置 `SYNAPSE_HOME`，再执行一键安装：
+
+```powershell
+$env:SYNAPSE_HOME = "D:\SynapseData"
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 | iex
+```
+
+运行时、数据库和 `mcp.json` 都会放在这个目录下。启动 GUI 或使用 CLI 时也要设置相同的 `SYNAPSE_HOME`。长期使用建议把它设为用户环境变量，然后重新打开终端。
+
+如果只想改运行时目录，下载安装器并用 `-RuntimePath`：
+
+```powershell
+$installer = Join-Path $env:TEMP "synapse-install.ps1"
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 -OutFile $installer
+& $installer -RuntimePath "D:\Synapse\runtime"
+```
+
+如果运行时不在 `<SYNAPSE_HOME>\runtime` 下，还要在编辑器设置中把 `synapse.pythonPath` 设为 `<runtime>\Scripts\python.exe`，否则侧边栏无法自动启动它。
+
+其他参数：`-Editor`、`-VsixPath`、`-UvPath`、`-Version`、`-NoPath`、`-Force`、`-DryRun`。
 
 ## 不使用侧边栏
 
