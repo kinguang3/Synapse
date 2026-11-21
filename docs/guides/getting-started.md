@@ -132,6 +132,23 @@ synapse index . --workers 8     # 调整解析并发
 
 从源码安装时也可以使用 `synapse-mcp` 或 `python -m synapse.integrations.mcp`。先调用 `synapse_projects_list` 获取项目 ID 或 slug，再调用其他项目级工具。`synapse_remember` 会写入本地记忆；`synapse_search` 只接受 `keyword` / `hybrid`。详见 [MCP 文档](../reference/mcp.md)。
 
-## 10. 清理
+## 10. 安装编辑器侧边栏
+
+侧边栏以独立 VSIX 分发。Windows PowerShell 一键安装：
+
+```powershell
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install-sidebar.ps1 | iex
+```
+
+脚本会下载对应版本 VSIX，并安装到检测到的 VS Code、VS Code Insiders、Trae CN 或 Trae。限定编辑器或手动安装：
+
+```powershell
+.\scripts\install-sidebar.ps1 -Editor code
+code --install-extension .\synapse-companion-0.1.1.vsix
+```
+
+侧边栏需要本地 GUI API。安装后可在扩展中运行 `Synapse: Start Local Service`，或按项目 README 的 GUI 章节启动服务。默认不会自动启动本地服务；需要时启用 `synapse.autoStartServer`。
+
+## 11. 清理
 
 Synapse 不使用隐藏后台服务。删除项目数据可删除对应 SQLite 数据库；删除默认数据目录前请先确认没有需要保留的记忆。

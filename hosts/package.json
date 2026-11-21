@@ -2,7 +2,7 @@
   "name": "synapse-companion",
   "displayName": "Synapse Companion",
   "description": "Local Synapse project memory, search and context in a shared editor sidebar.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "synapse-local",
   "license": "MIT",
   "repository": {

@@ -11,6 +11,7 @@
   <a href="#mcp-server">MCP</a> ·
   <a href="#common-commands">CLI</a> ·
   <a href="#gui">GUI</a> ·
+  <a href="#editor-sidebar">Sidebar</a> ·
   <a href="#documentation">Docs</a>
 </p>
 
@@ -146,6 +147,31 @@ Open `http://127.0.0.1:8765/` and connect with the access token printed by the s
 - Pages: Overview, Knowledge Graph, Search, Memory, Context, Indexing.
 - Knowledge edits are not implemented yet; the Indexing page can start an index run through the same Core and project-level lock.
 - Requests require a local bearer token and pass Host/Origin checks.
+
+## Editor sidebar
+
+Synapse Companion is a VS Code-compatible sidebar for search, memory browsing, context building, and graph exploration. It ships as a separate VSIX and does not require a Node build step.
+
+One-command install from the latest GitHub release:
+
+```powershell
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install-sidebar.ps1 | iex
+```
+
+The bootstrap downloads the matching VSIX, detects `code`, `code-insiders`, `trae-cn`, or `trae`, and installs into each detected editor. To target one editor, download the script and pass `-Editor code`. You can also install a downloaded VSIX directly:
+
+```powershell
+code --install-extension .\synapse-companion-0.1.1.vsix
+trae-cn --install-extension .\synapse-companion-0.1.1.vsix
+```
+
+From a source checkout:
+
+```powershell
+.\scripts\install-sidebar.ps1 -VsixPath .\dist\synapse-companion-0.1.1.vsix
+```
+
+The sidebar needs the local GUI API. Start it from the extension with `Synapse: Start Local Service`, or run the [GUI](#gui) command, then enable `synapse.autoStartServer` if you want the extension to start it on demand.
 
 ## Data location
 

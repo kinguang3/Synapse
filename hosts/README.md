@@ -12,10 +12,16 @@
 
 ## 安装
 
-从 VSIX 安装：
+从最新 GitHub Release 一键安装：
 
 ```powershell
-code --install-extension D:\Synapse\dist\synapse-companion-0.1.0.vsix
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install-sidebar.ps1 | iex
+```
+
+脚本会自动检测 VS Code、VS Code Insiders、Trae CN 和 Trae。也可以手动安装 VSIX：
+
+```powershell
+code --install-extension D:\Synapse\dist\synapse-companion-0.1.1.vsix
 ```
 
 Trae CN 使用 `trae-cn --install-extension <path>`。安装后从活动栏打开 **Synapse**，或运行 `Synapse: Open Companion Sidebar`。
@@ -46,7 +52,7 @@ Webview -> postMessage RPC -> 扩展宿主 -> 127.0.0.1:8765 -> Synapse Core
 
 ```powershell
 npm test
-npx --yes @vscode/vsce package --out ..\dist\synapse-companion-0.1.0.vsix
+npx --yes @vscode/vsce package --out ..\dist\synapse-companion-0.1.1.vsix
 ```
 
 `npm test` 从 `hosts/` 运行 Node 测试。DOM 渲染测试需要本机安装 Edge 或 Chrome。

@@ -11,6 +11,7 @@
   <a href="#mcp-server">MCP</a> ·
   <a href="#常用命令">CLI</a> ·
   <a href="#gui">GUI</a> ·
+  <a href="#编辑器侧边栏">侧边栏</a> ·
   <a href="#文档">文档</a>
 </p>
 
@@ -146,6 +147,31 @@ python -m synapse.integrations.gui --port 8765
 - 页面：Overview、Knowledge Graph、Search、Memory、Context、Indexing。
 - 记忆编辑尚未实现；Indexing 页面可以通过同一套 Core 触发一次索引，沿用项目级 FileLock。
 - 请求需要本地 Bearer Token，并经过 Host/Origin 校验。
+
+## 编辑器侧边栏
+
+Synapse Companion 是 VS Code 兼容侧边栏，提供检索、记忆浏览、上下文构建和图探索。它以独立 VSIX 分发，不需要 Node 构建步骤。
+
+从最新 GitHub Release 一键安装：
+
+```powershell
+irm https://github.com/kinguang3/Synapse/releases/latest/download/install-sidebar.ps1 | iex
+```
+
+脚本会下载对应 VSIX，自动检测 `code`、`code-insiders`、`trae-cn` 和 `trae`，并安装到所有检测到的编辑器。如需限定目标，可下载脚本后传 `-Editor code`。也可以直接安装已下载的 VSIX：
+
+```powershell
+code --install-extension .\synapse-companion-0.1.1.vsix
+trae-cn --install-extension .\synapse-companion-0.1.1.vsix
+```
+
+从源码目录安装：
+
+```powershell
+.\scripts\install-sidebar.ps1 -VsixPath .\dist\synapse-companion-0.1.1.vsix
+```
+
+侧边栏需要本地 GUI API。可在扩展中运行 `Synapse: Start Local Service`，或使用 [GUI](#gui) 命令启动；如需扩展按需启动服务，可启用 `synapse.autoStartServer`。
 
 ## 数据位置
 
