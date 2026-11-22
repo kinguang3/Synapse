@@ -47,6 +47,7 @@ test('host bridge bootstraps, searches, and rejects path escapes without exposin
     pythonPath: '',
     autoStartServer: false,
     requestTimeoutMs: 5000,
+    graphNodeDistance: 82,
   };
 
   const vscode = {
@@ -268,6 +269,7 @@ test('host bridge bootstraps, searches, and rejects path escapes without exposin
     assert.equal(bootstrap.result.connection, 'connected');
     assert.equal(bootstrap.result.selectedProjectId, 'project-1');
     assert.equal(bootstrap.result.status.stats.nodes, 12);
+    assert.equal(bootstrap.result.graphSettings.nodeDistance, 82);
     assert.equal(JSON.stringify(bootstrap.result).includes(TOKEN), false);
 
     const projectsRequest = requestLog.find((item) => item.path === '/api/v1/projects');

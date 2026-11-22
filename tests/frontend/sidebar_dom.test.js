@@ -36,7 +36,8 @@ window.acquireVsCodeApi = function () {
           message: '',
           projects: [{ id: 'project-1', slug: 'synapse', name: 'Synapse', root_path: 'D:\\Synapse' }],
           selectedProjectId: 'project-1',
-          status: { stats: { nodes: 12, relations: 9, sources: 3 } }
+          status: { stats: { nodes: 12, relations: 9, sources: 3 } },
+          graphSettings: { nodeDistance: 104 }
         });
       } else if (message.method === 'search') {
         reply(message.id, {

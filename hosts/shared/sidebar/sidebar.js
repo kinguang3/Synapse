@@ -4,6 +4,7 @@
   var core = window.SynapseSidebarCore;
   var vscode = acquireVsCodeApi();
   var state = core.createState();
+  state.graphSettings = null;
   var pending = new Map();
   var sequence = 0;
   var currentTab = 'search';
@@ -212,6 +213,10 @@
     state.projects = Array.isArray(payload.projects) ? payload.projects : [];
     state.projectId = core.pickProjectId(state.projects, payload.selectedProjectId || previousProject);
     state.status = payload.status || null;
+    if (payload.graphSettings) {
+      state.graphSettings = payload.graphSettings;
+      if (graphPage) graphPage.setSettings(state.graphSettings);
+    }
     if (previousProject !== state.projectId) clearResults();
     setConnection(payload.connection || 'error', payload.message || '');
     renderProjects();
@@ -545,6 +550,9 @@
       return state.projectId;
     },
     getProject: currentProject,
+    getGraphSettings: function () {
+      return state.graphSettings;
+    },
     notify: showNotice,
     copy: copyText,
     openPath: async function (path, line) {
@@ -653,6 +661,9 @@
         showNotice(message.message, message.level);
       } else if (message.event === 'bootstrap') {
         applyBootstrap(message.data);
+      } else if (message.event === 'graphSettings') {
+        state.graphSettings = message.data || null;
+        if (graphPage) graphPage.setSettings(state.graphSettings);
       }
     }
   });

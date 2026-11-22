@@ -108,6 +108,13 @@
           "minimum": 1000,
           "maximum": 120000,
           "description": "Timeout for local Synapse API requests."
+        },
+        "synapse.graphNodeDistance": {
+          "type": "number",
+          "default": 68,
+          "minimum": 40,
+          "maximum": 200,
+          "description": "Default spacing between nodes in the sidebar knowledge graph. Larger values spread the graph out."
         }
       }
     }

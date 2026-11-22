@@ -108,6 +108,13 @@ class CompanionController {
     return normalizeBaseUrl(this.configuration().get('serverUrl', 'http://127.0.0.1:8765'));
   }
 
+  graphSettings() {
+    const value = Number(this.configuration().get('graphNodeDistance', 68));
+    return {
+      nodeDistance: Number.isFinite(value) ? Math.max(40, Math.min(200, value)) : 68,
+    };
+  }
+
   async getToken() {
     return String((await this.extensionContext.secrets.get(TOKEN_KEY)) || '');
   }
@@ -185,6 +192,7 @@ class CompanionController {
         message: '访问令牌无效或已变更',
         projects: this.projects,
         selectedProjectId: this.activeProjectId,
+        graphSettings: this.graphSettings(),
       };
     }
     if (isUnavailableError(error)) {
@@ -193,6 +201,7 @@ class CompanionController {
         message: '本地 Synapse 服务未运行',
         projects: this.projects,
         selectedProjectId: this.activeProjectId,
+        graphSettings: this.graphSettings(),
       };
     }
     return {
@@ -200,6 +209,7 @@ class CompanionController {
       message: String((error && error.message) || '连接失败'),
       projects: this.projects,
       selectedProjectId: this.activeProjectId,
+      graphSettings: this.graphSettings(),
     };
   }
 
@@ -222,6 +232,7 @@ class CompanionController {
           message: '本地 Synapse 服务未运行',
           projects: this.projects,
           selectedProjectId: this.activeProjectId,
+          graphSettings: this.graphSettings(),
         };
       }
 
@@ -232,6 +243,7 @@ class CompanionController {
           message: '尚未保存访问令牌',
           projects: this.projects,
           selectedProjectId: this.activeProjectId,
+          graphSettings: this.graphSettings(),
         };
       }
 
@@ -260,6 +272,7 @@ class CompanionController {
         projects,
         selectedProjectId,
         status,
+        graphSettings: this.graphSettings(),
       };
     } catch (error) {
       return this.connectionError(error);
@@ -426,6 +439,7 @@ class CompanionController {
         connection: 'auth-required',
         projects: this.projects,
         selectedProjectId: this.activeProjectId,
+        graphSettings: this.graphSettings(),
       };
     }
     const trimmed = token.trim();
@@ -770,6 +784,19 @@ function activate(context) {
       webviewOptions: { retainContextWhenHidden: true },
     }),
   );
+
+  if (vscode.workspace.onDidChangeConfiguration) {
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration((event) => {
+        if (!event.affectsConfiguration('synapse.graphNodeDistance')) return;
+        provider.post({
+          type: 'event',
+          event: 'graphSettings',
+          data: controller.graphSettings(),
+        });
+      }),
+    );
+  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand('synapse.companion.focus', focusSidebar),
