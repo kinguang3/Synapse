@@ -739,32 +739,48 @@ input::placeholder {
   background: #a1a1aa;
 }
 
-.sg-swatch.is-project,
-.sg-swatch.is-function,
-.sg-swatch.is-memory {
-  background: #fafafa;
+.sg-swatch.is-project {
+  background: #f8fafc;
 }
 
 .sg-swatch.is-directory {
-  background: #3f3f46;
+  background: #a78bfa;
 }
 
-.sg-swatch.is-file,
-.sg-swatch.is-document {
-  background: #d4d4d8;
+.sg-swatch.is-file {
+  background: #60a5fa;
 }
 
 .sg-swatch.is-class {
-  background: #e4e4e7;
+  background: #fbbf24;
 }
 
-.sg-swatch.is-method,
-.sg-swatch.is-note {
-  background: #a1a1aa;
+.sg-swatch.is-function {
+  background: #34d399;
+}
+
+.sg-swatch.is-method {
+  background: #2dd4bf;
+}
+
+.sg-swatch.is-document {
+  background: #fb7185;
 }
 
 .sg-swatch.is-doc_section {
-  background: #71717a;
+  background: #f472b6;
+}
+
+.sg-swatch.is-memory {
+  background: #c084fc;
+}
+
+.sg-swatch.is-note {
+  background: #facc15;
+}
+
+.sg-swatch.is-requirement {
+  background: #fb923c;
 }
 
 .sg-empty {

@@ -17,18 +17,6 @@
     { value: 'preference', label: 'preference' },
     { value: 'summary', label: 'summary' }
   ];
-  var NODE_COLORS = {
-    project: '#fafafa',
-    file: '#d4d4d8',
-    class: '#e4e4e7',
-    function: '#fafafa',
-    method: '#a1a1aa',
-    document: '#d4d4d8',
-    doc_section: '#71717a',
-    memory: '#f4f4f5',
-    note: '#9ca3af',
-    directory: '#3f3f46'
-  };
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -86,6 +74,9 @@
     this.alpha = 0;
     this.frame = null;
     this.ticks = 0;
+    this.edgeFlow = 0;
+    this.settled = false;
+    this.nodeDistance = CORE.DEFAULT_GRAPH_SETTINGS.nodeDistance;
     this.selected = null;
     this.hover = null;
     this.dragNode = null;
@@ -174,8 +165,20 @@
     this.computeDegree();
     this.alpha = 1;
     this.ticks = 0;
+    this.settled = false;
     if (opts.fit !== false) this.fit();
     this.start();
+  };
+
+  SidebarGraphView.prototype.setNodeDistance = function setNodeDistance(value) {
+    var next = CORE.normalizeGraphSettings({ nodeDistance: value }).nodeDistance;
+    if (next === this.nodeDistance) return;
+    this.nodeDistance = next;
+    this.alpha = Math.max(this.alpha, 0.45);
+    this.ticks = 0;
+    this.settled = false;
+    this.start();
+    this.draw();
   };
 
   SidebarGraphView.prototype.clearSelection = function clearSelection() {
@@ -201,12 +204,11 @@
 
   SidebarGraphView.prototype.loop = function loop() {
     this.frame = null;
+    this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     var active = this.step();
     this.draw();
-    if (active) {
-      var self = this;
-      this.frame = global.requestAnimationFrame(function () { self.loop(); });
-    } else {
+    if (!active && !this.settled) {
+      this.settled = true;
       for (var i = 0; i < this.nodes.length; i += 1) {
         var node = this.nodes[i];
         this.positions.set(node.id, { x: node.x, y: node.y });
@@ -214,6 +216,10 @@
       if (this.callbacks.onStats) {
         this.callbacks.onStats({ nodes: this.nodes.length, edges: this.edges.length });
       }
+    }
+    if (active || this.edges.length) {
+      var self = this;
+      this.frame = global.requestAnimationFrame(function () { self.loop(); });
     }
   };
 
@@ -257,7 +263,7 @@
       var ex = end.x - start.x;
       var ey = end.y - start.y;
       var length = Math.max(1, Math.sqrt(ex * ex + ey * ey));
-      var rest = 68 + (1 - edge.confidence) * 34;
+      var rest = this.nodeDistance + (1 - edge.confidence) * 34;
       var pull = (length - rest) * 0.012 * this.alpha;
       var px = (ex / length) * pull;
       var py = (ey / length) * pull;
@@ -312,18 +318,17 @@
       var b = this.byId.get(edge.to);
       if (!a || !b) continue;
       var active = selected && (edge.from === selected || edge.to === selected);
-      ctx.setLineDash(edge.synthetic ? [3, 4] : []);
+      var dim = selected && !active;
+      var color = CORE.relationColor(edge.type);
+      ctx.setLineDash(edge.synthetic ? [2, 6] : [7, 5]);
+      ctx.lineDashOffset = edge.synthetic ? this.edgeFlow * 0.6 : -this.edgeFlow;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = active
-        ? 'rgba(250, 250, 250, 0.5)'
-        : edge.synthetic
-          ? 'rgba(161, 161, 170, 0.1)'
-          : 'rgba(161, 161, 170, 0.18)';
-      ctx.lineWidth = active ? 1.3 : 0.8;
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = dim ? 0.12 : active ? 0.95 : edge.synthetic ? 0.4 : 0.62;
+      ctx.lineWidth = active ? 1.5 : 0.9;
       ctx.stroke();
-      ctx.setLineDash([]);
       if (active) {
         var angle = Math.atan2(b.y - a.y, b.x - a.x);
         var tx = b.x - Math.cos(angle) * 9;
@@ -333,9 +338,12 @@
         ctx.lineTo(tx - Math.cos(angle - 0.4) * 6, ty - Math.sin(angle - 0.4) * 6);
         ctx.lineTo(tx - Math.cos(angle + 0.4) * 6, ty - Math.sin(angle + 0.4) * 6);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(250, 250, 250, 0.7)';
+        ctx.fillStyle = color;
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
     }
 
     function shape(node, radius) {
@@ -362,7 +370,7 @@
       var radius = node.kind === 'group'
         ? 8 + node.salience * 5
         : 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
-      var color = node.kind === 'group' ? '#3f3f46' : NODE_COLORS[node.type] || '#a1a1aa';
+      var color = CORE.nodeColor(node);
       var dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
       ctx.fillStyle = color;
@@ -633,10 +641,16 @@
       epoch: 0,
       detailEpoch: 0,
       focusId: null,
+      settings: CORE.normalizeGraphSettings(ctx.getGraphSettings ? ctx.getGraphSettings() : null),
       graph: null
     };
     var elements = {};
     var graph = null;
+
+    function setSettings(settings) {
+      state.settings = CORE.normalizeGraphSettings(settings);
+      if (graph) graph.setNodeDistance(state.settings.nodeDistance);
+    }
 
     function projectId() {
       return String(ctx.getProjectId ? ctx.getProjectId() : '');
@@ -705,7 +719,8 @@
         });
         elements.legend.innerHTML = types.map(function (type) {
           return '<span class="sg-legend-item"><span class="sg-swatch is-' + safeClass(type) +
-            '"></span>' + esc(type) + ' ' + stats.byType[type] + '</span>';
+            '" style="background:' + CORE.typeColor(type) + '"></span>' + esc(type) + ' ' +
+            stats.byType[type] + '</span>';
         }).join('');
       }
 
@@ -738,7 +753,8 @@
           var count = Number(nodeCounts[type] || 0);
           return '<button class="sg-chip' + (active ? ' is-active' : '') +
             '" type="button" data-type="' + esc(type) + '">' +
-            '<span class="sg-swatch is-' + safeClass(type) + '"></span>' + esc(type) +
+            '<span class="sg-swatch is-' + safeClass(type) + '" style="background:' +
+            CORE.typeColor(type) + '"></span>' + esc(type) +
             ' <b>' + count + '</b></button>';
         }).join('');
       }
@@ -752,8 +768,9 @@
             var active = cfg.relations.has(type);
             var count = Number((caps.relation_counts || {})[type] || 0);
             return '<button class="sg-chip' + (active ? ' is-active' : '') +
-              '" type="button" data-relation="' + esc(type) + '">' + esc(type) +
-              ' <b>' + count + '</b></button>';
+              '" type="button" data-relation="' + esc(type) + '">' +
+              '<span class="sg-swatch" style="background:' + CORE.relationColor(type) + '"></span>' +
+              esc(type) + ' <b>' + count + '</b></button>';
           }).join('');
         }
       }
@@ -1440,6 +1457,7 @@
         onZoom: updateZoom,
         onStats: renderChrome
       });
+      graph.setNodeDistance(state.settings.nodeDistance);
       state.graph = graph;
       bindEvents();
       state.initialized = true;
@@ -1502,7 +1520,8 @@
     return {
       init: init,
       activate: activate,
-      reset: reset
+      reset: reset,
+      setSettings: setSettings
     };
   }
 
