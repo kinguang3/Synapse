@@ -5,17 +5,31 @@
 
 const API = '/api/v1';
 
-const NODE_COLORS = {
-  project: '#fafafa',
-  file: '#d4d4d8',
-  class: '#e4e4e7',
-  function: '#fafafa',
-  method: '#a1a1aa',
-  document: '#d4d4d8',
-  doc_section: '#71717a',
-  memory: '#f4f4f5',
-  note: '#9ca3af',
+const GRAPH_CORE = globalThis.SynapseGraph || {};
+const NODE_COLORS = GRAPH_CORE.NODE_COLORS || {
+  project: '#f8fafc',
+  directory: '#a78bfa',
+  file: '#60a5fa',
+  class: '#fbbf24',
+  function: '#34d399',
+  method: '#2dd4bf',
+  document: '#fb7185',
+  doc_section: '#f472b6',
+  memory: '#c084fc',
+  note: '#facc15',
+  requirement: '#fb923c',
 };
+const RELATION_COLORS = GRAPH_CORE.RELATION_COLORS || {};
+
+function graphNodeColor(node) {
+  if (GRAPH_CORE.nodeColor) return GRAPH_CORE.nodeColor(node);
+  return NODE_COLORS[node && node.type] || '#a1a1aa';
+}
+
+function graphRelationColor(type) {
+  if (GRAPH_CORE.relationColor) return GRAPH_CORE.relationColor(type);
+  return RELATION_COLORS[String(type || '').toUpperCase()] || '#94a3b8';
+}
 
 const NODE_TYPES = ['file', 'class', 'function', 'method', 'document', 'doc_section', 'memory', 'note'];
 const RELATION_TYPES = [
@@ -547,6 +561,8 @@ class GraphView {
     this.alpha = 0;
     this.frame = null;
     this.ticks = 0;
+    this.edgeFlow = 0;
+    this.settled = false;
     this.selected = null;
     this.hover = null;
     this.dragNode = null;
@@ -633,6 +649,7 @@ class GraphView {
     this.computeDegree();
     this.alpha = 1;
     this.ticks = 0;
+    this.settled = false;
     if (opts.fit !== false) this.fit();
     this.start();
   }
@@ -711,13 +728,16 @@ class GraphView {
 
   loop() {
     this.frame = null;
+    this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     const active = this.step();
     this.draw();
-    if (active) {
-      this.frame = requestAnimationFrame(() => this.loop());
-    } else {
+    if (!active && !this.settled) {
+      this.settled = true;
       for (const node of this.nodes) state.graphPositions[node.id] = { x: node.x, y: node.y };
       this.report();
+    }
+    if (active || this.edges.length) {
+      this.frame = requestAnimationFrame(() => this.loop());
     }
   }
 
@@ -813,18 +833,17 @@ class GraphView {
       const b = this.byId.get(edge.to);
       if (!a || !b) continue;
       const active = selected && (edge.from === selected || edge.to === selected);
-      ctx.setLineDash(edge.synthetic ? [3, 4] : []);
+      const dim = selected && !active;
+      const color = graphRelationColor(edge.type);
+      ctx.setLineDash(edge.synthetic ? [2, 6] : [7, 5]);
+      ctx.lineDashOffset = edge.synthetic ? this.edgeFlow * 0.6 : -this.edgeFlow;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = active
-        ? 'rgba(250, 250, 250, 0.5)'
-        : edge.synthetic
-          ? 'rgba(161, 161, 170, 0.1)'
-          : 'rgba(161, 161, 170, 0.18)';
-      ctx.lineWidth = active ? 1.3 : 0.8;
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = dim ? 0.12 : active ? 0.95 : edge.synthetic ? 0.4 : 0.62;
+      ctx.lineWidth = active ? 1.5 : 0.9;
       ctx.stroke();
-      ctx.setLineDash([]);
       if (active) {
         const angle = Math.atan2(b.y - a.y, b.x - a.x);
         const tx = b.x - Math.cos(angle) * 9;
@@ -834,9 +853,12 @@ class GraphView {
         ctx.lineTo(tx - Math.cos(angle - 0.4) * 6, ty - Math.sin(angle - 0.4) * 6);
         ctx.lineTo(tx - Math.cos(angle + 0.4) * 6, ty - Math.sin(angle + 0.4) * 6);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(250, 250, 250, 0.7)';
+        ctx.fillStyle = color;
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
     }
 
     const shape = (node, radius) => {
@@ -862,7 +884,7 @@ class GraphView {
       const radius = node.kind === 'group'
         ? 8 + node.salience * 5
         : 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
-      const color = node.kind === 'group' ? '#3f3f46' : NODE_COLORS[node.type] || '#a1a1aa';
+      const color = graphNodeColor(node);
       const dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
       ctx.fillStyle = color;

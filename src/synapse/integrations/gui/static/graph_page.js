@@ -250,7 +250,7 @@
     var legend = Object.keys(stats.byType).sort(function (a, b) {
       return stats.byType[b] - stats.byType[a];
     }).map(function (type) {
-      var color = type === 'directory' ? '#3f3f46' : NODE_COLORS[type] || '#a1a1aa';
+      var color = G().typeColor ? G().typeColor(type) : NODE_COLORS[type] || '#a1a1aa';
       return '<span class="lg"><span class="sw" style="background:' + color + '"></span>' +
         esc(type) + ' ' + stats.byType[type] + '</span>';
     }).join('');
@@ -301,9 +301,10 @@
       typesEl.innerHTML = G().viewFor(currentView()).nodeTypes.map(function (type) {
         var count = Number(nodeCounts[type] || 0);
         var active = cfg.types.has(type);
+        var swatch = G().typeColor ? G().typeColor(type) : NODE_COLORS[type] || '#a1a1aa';
         return '<button class="chip clickable' + (active ? ' active' : '') + '" data-type="' + type + '"' +
           (count ? '' : ' title="' + esc(T('graph.detail.noTypeNodes')) + '"') + '>' +
-          '<span class="swatch" style="background:' + (NODE_COLORS[type] || '#a1a1aa') + '"></span>' +
+          '<span class="swatch" style="background:' + swatch + '"></span>' +
           type + ' <b>' + count + '</b></button>';
       }).join('');
     }
@@ -316,7 +317,9 @@
         relationsEl.innerHTML = options.map(function (type) {
           var active = cfg.relations.has(type);
           var count = Number((caps.relation_counts || {})[type] || 0);
+          var color = G().relationColor ? G().relationColor(type) : '#94a3b8';
           return '<button class="chip clickable' + (active ? ' active' : '') + '" data-relation="' + type + '">' +
+            '<span class="swatch" style="background:' + color + '"></span>' +
             type + ' <b>' + count + '</b></button>';
         }).join('');
       }
