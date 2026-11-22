@@ -59,7 +59,7 @@ synapse projects register . --index
 
 4. 把生成的 `mcp.json` 配置加入你的 MCP 客户端。
 
-打开侧边栏时，如果服务未运行或健康检查失败，扩展会启动服务并等待健康检查通过，再加载项目。如果仍显示离线，运行 `Synapse: Start Local Service` 并查看 Synapse 输出面板。如需关闭自动启动，将 `synapse.autoStartServer` 设为 `false`。
+打开侧边栏时，如果服务未运行或健康检查失败，扩展会启动服务并等待健康检查通过，再加载项目。如果仍显示离线，运行 `Synapse: Start Local Service` 并查看 Synapse 输出面板。如需关闭自动启动，将 `synapse.autoStartServer` 设为 `false`。如需调整图谱节点间距，设置 `synapse.graphNodeDistance`（40-200，默认 68）。
 
 MCP Server 是本地 stdio 服务，由 MCP 客户端启动，不由侧边栏管理。
 

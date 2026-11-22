@@ -59,7 +59,7 @@ synapse projects register . --index
 
 4. Add the generated `mcp.json` entry to your MCP client.
 
-Opening the sidebar starts the service only when it is not already healthy, then waits for the health check before loading projects. If it still shows offline, run `Synapse: Start Local Service` and check the Synapse output channel. To disable automatic startup, set `synapse.autoStartServer` to `false`.
+Opening the sidebar starts the service only when it is not already healthy, then waits for the health check before loading projects. If it still shows offline, run `Synapse: Start Local Service` and check the Synapse output channel. To disable automatic startup, set `synapse.autoStartServer` to `false`. To tune graph spacing, set `synapse.graphNodeDistance` (40-200, default 68).
 
 The MCP server is local stdio and is started by your MCP client, not by the sidebar.
 

@@ -47,6 +47,7 @@ Webview -> postMessage RPC -> 扩展宿主 -> 127.0.0.1:8765 -> Synapse Core
 | `synapse.pythonPath` | 空 | 启动服务使用的 Python；留空时优先使用托管运行时、工作区 `.venv` 或 PATH。 |
 | `synapse.autoStartServer` | `true` | 侧边栏无法连接时是否自动启动服务。 |
 | `synapse.requestTimeoutMs` | `15000` | API 请求超时，范围 1000-120000 毫秒。 |
+| `synapse.graphNodeDistance` | `68` | 知识图谱默认节点间距，范围 40-200；数值越大布局越松。 |
 
 ## 开发
 
