@@ -84,3 +84,26 @@ test('guards stale view requests and resets all scoped maps', () => {
   assert.equal(graph.stats(store).nodes, 0);
   assert.equal(store.children.size, 0);
 });
+
+test('assigns distinct node and relation colors', () => {
+  assert.notEqual(graph.typeColor('file'), graph.typeColor('document'));
+  assert.notEqual(graph.typeColor('class'), graph.typeColor('function'));
+  assert.notEqual(graph.typeColor('function'), graph.typeColor('method'));
+
+  const first = graph.nodeColor({ type: 'file', path: 'src/a.py' });
+  const second = graph.nodeColor({ type: 'file', path: 'src/b.py' });
+  assert.match(first, /^hsl\(/);
+  assert.notEqual(first, second);
+
+  assert.notEqual(graph.relationColor('CONTAINS'), graph.relationColor('IMPORTS'));
+  assert.equal(graph.relationColor('calls'), graph.RELATION_COLORS.CALLS);
+  assert.match(graph.relationColor('CUSTOM_RELATION'), /^hsl\(/);
+});
+
+test('normalizes graph distance settings into the supported range', () => {
+  assert.equal(graph.normalizeGraphSettings(null).nodeDistance, 68);
+  assert.equal(graph.normalizeGraphSettings({ nodeDistance: '96' }).nodeDistance, 96);
+  assert.equal(graph.normalizeGraphSettings({ nodeDistance: 1 }).nodeDistance, 40);
+  assert.equal(graph.normalizeGraphSettings({ nodeDistance: 999 }).nodeDistance, 200);
+  assert.equal(graph.normalizeGraphSettings({ nodeDistance: 'nope' }).nodeDistance, 68);
+});

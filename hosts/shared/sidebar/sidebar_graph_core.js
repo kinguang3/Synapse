@@ -43,6 +43,82 @@
   const VIEW_ORDER = ['architecture', 'symbols', 'documentation', 'memory'];
   const MEMORY_TYPES = ['', 'decision', 'fact', 'experience', 'preference', 'summary'];
 
+  const NODE_COLORS = {
+    project: '#f8fafc',
+    directory: '#a78bfa',
+    file: '#60a5fa',
+    class: '#fbbf24',
+    function: '#34d399',
+    method: '#2dd4bf',
+    document: '#fb7185',
+    doc_section: '#f472b6',
+    memory: '#c084fc',
+    note: '#facc15',
+    requirement: '#fb923c',
+  };
+
+  const RELATION_COLORS = {
+    CONTAINS: '#94a3b8',
+    IMPORTS: '#38bdf8',
+    CALLS: '#34d399',
+    REFERENCES: '#fbbf24',
+    INHERITS: '#c084fc',
+    EXPLAINS: '#fb7185',
+    RELATED_TO: '#22d3ee',
+    DERIVED_FROM: '#a3e635',
+    DEPENDS_ON: '#f97316',
+    SOLVES: '#2dd4bf',
+    CONTRADICTS: '#ef4444',
+    MENTIONS: '#e879f9',
+    DEFINES: '#60a5fa',
+    OVERRIDES: '#f59e0b',
+    USES: '#f472b6',
+  };
+
+  const GRAPH_DISTANCE_MIN = 40;
+  const GRAPH_DISTANCE_MAX = 200;
+  const DEFAULT_GRAPH_SETTINGS = { nodeDistance: 68 };
+
+  function hashString(value) {
+    const text = String(value == null ? '' : value);
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+  }
+
+  function typeColor(type) {
+    return NODE_COLORS[String(type || '')] || '#a1a1aa';
+  }
+
+  function nodeColor(node) {
+    const type = String((node && node.type) || '');
+    if (type === 'file') {
+      const key = String((node && (node.path || node.title || node.id)) || '');
+      if (!key) return typeColor(type);
+      const hue = 195 + (hashString(key) % 55);
+      return 'hsl(' + hue + ', 78%, 64%)';
+    }
+    return typeColor(type);
+  }
+
+  function relationColor(type) {
+    const key = String(type || '').toUpperCase();
+    return RELATION_COLORS[key] || 'hsl(' + (hashString(key) % 360) + ', 72%, 64%)';
+  }
+
+  function normalizeGraphSettings(raw) {
+    const rawValue = raw && raw.nodeDistance;
+    const value = Number(rawValue);
+    const valid = rawValue !== undefined && rawValue !== null && rawValue !== '' &&
+      Number.isFinite(value);
+    const nodeDistance = valid
+      ? Math.min(GRAPH_DISTANCE_MAX, Math.max(GRAPH_DISTANCE_MIN, value))
+      : DEFAULT_GRAPH_SETTINGS.nodeDistance;
+    return { nodeDistance };
+  }
+
   const EXPANDABLE_TYPES = new Set([
     'file',
     'document',
@@ -299,6 +375,11 @@
     VIEW_ORDER,
     MEMORY_TYPES,
     EXPANDABLE_TYPES,
+    NODE_COLORS,
+    RELATION_COLORS,
+    GRAPH_DISTANCE_MIN,
+    GRAPH_DISTANCE_MAX,
+    DEFAULT_GRAPH_SETTINGS,
     addEdges,
     addNodes,
     addPayload,
@@ -307,13 +388,18 @@
     createStore,
     descendants,
     filterEdges,
+    hashString,
     isCurrent,
+    nodeColor,
+    normalizeGraphSettings,
+    relationColor,
     relationCounts,
     relationOptions,
     removeNodes,
     reset,
     stats,
     toggleExpand,
+    typeColor,
     viewFor,
   };
 
