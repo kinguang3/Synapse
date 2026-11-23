@@ -572,6 +572,10 @@ class GraphView {
     this.dragIds = new Set();
     this.dragAlpha = 0;
     this.dragSettled = true;
+    this.dragOffsets = new Map();
+    this.dragFollowParent = { x: 0, y: 0 };
+    this.dragFollowFrame = null;
+    this.dragReleasePending = false;
     this.pan = null;
     this.moved = false;
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -614,8 +618,10 @@ class GraphView {
   stop() {
     if (this.frame) cancelAnimationFrame(this.frame);
     if (this.drawFrame) cancelAnimationFrame(this.drawFrame);
+    if (this.dragFollowFrame) cancelAnimationFrame(this.dragFollowFrame);
     this.frame = null;
     this.drawFrame = null;
+    this.dragFollowFrame = null;
     if (this.observer) this.observer.disconnect();
   }
 
@@ -846,6 +852,68 @@ class GraphView {
     });
   }
 
+  startDragFollow() {
+    if (this.dragFollowFrame) return;
+    this.dragFollowFrame = requestAnimationFrame(() => this.followDrag());
+  }
+
+  followDrag() {
+    this.dragFollowFrame = null;
+    if (!this.dragOffsets.size) {
+      this.finishDragFollow();
+      return;
+    }
+    const base = this.dragFollowParent;
+    let settled = true;
+    for (const [id, offset] of this.dragOffsets) {
+      const child = this.byId.get(id);
+      if (!child) continue;
+      const tx = base.x + offset.x;
+      const ty = base.y + offset.y;
+      const dx = tx - child.x;
+      const dy = ty - child.y;
+      if (Math.abs(dx) > 0.35 || Math.abs(dy) > 0.35) {
+        const factor = Math.max(0.14, 0.3 - ((offset.depth || 1) - 1) * 0.04);
+        child.x += dx * factor;
+        child.y += dy * factor;
+        child.vx = 0;
+        child.vy = 0;
+        settled = false;
+      } else {
+        child.x = tx;
+        child.y = ty;
+      }
+    }
+    this.draw();
+    if (!settled) {
+      this.startDragFollow();
+      return;
+    }
+    this.finishDragFollow();
+  }
+
+  finishDragFollow() {
+    if (this.dragNode || !this.dragReleasePending) return;
+    this.dragReleasePending = false;
+    for (const node of this.nodes) node.fixed = false;
+    this.savePositions();
+    this.settled = true;
+    this.dragOffsets = new Map();
+    if (this.selected && this.adjacent.size) this.start();
+  }
+
+  cancelDragFollow(save) {
+    if (this.dragFollowFrame) cancelAnimationFrame(this.dragFollowFrame);
+    this.dragFollowFrame = null;
+    this.dragReleasePending = false;
+    if (save) {
+      for (const node of this.nodes) node.fixed = false;
+      this.savePositions();
+      this.settled = true;
+    }
+    this.dragOffsets = new Map();
+  }
+
   savePositions() {
     for (const node of this.nodes) {
       state.graphPositions[node.id] = { x: node.x, y: node.y };
@@ -857,20 +925,20 @@ class GraphView {
     this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     const active = this.step();
     this.draw();
-    if (!active && !this.settled && !this.dragNode) {
+    if (!active && !this.settled && !this.dragNode && !this.dragReleasePending) {
       this.settled = true;
       for (const node of this.nodes) node.fixed = false;
       this.savePositions();
       this.report();
     }
-    if (!this.dragNode && (active || (this.selected && this.adjacent.size))) {
+    if (!this.dragNode && !this.dragReleasePending && (active || (this.selected && this.adjacent.size))) {
       this.frame = requestAnimationFrame(() => this.loop());
     }
   }
 
   step() {
     const nodes = this.nodes;
-    if (!nodes.length) return false;
+    if (!nodes.length || this.dragReleasePending) return false;
     if (this.ticks > 260 || this.alpha < 0.015) {
       this.alpha = 0;
       return false;
@@ -1109,9 +1177,27 @@ class GraphView {
     if (event.pointerId != null && this.canvas.setPointerCapture) {
       try { this.canvas.setPointerCapture(event.pointerId); } catch (error) {}
     }
+    if (!this.dragNode && (this.dragFollowFrame || this.dragReleasePending)) {
+      this.cancelDragFollow(true);
+    }
     if (node) {
       this.dragNode = node;
       this.dragIds = this.descendantsOf(node.id);
+      this.dragOffsets = new Map();
+      const queue = [{ id: node.id, depth: 0 }];
+      const seen = new Set([node.id]);
+      while (queue.length) {
+        const item = queue.shift();
+        for (const id of this.childIds.get(item.id) || []) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const child = this.byId.get(id);
+          if (!child) continue;
+          this.dragOffsets.set(id, { x: child.x - node.x, y: child.y - node.y, depth: item.depth + 1 });
+          queue.push({ id, depth: item.depth + 1 });
+        }
+      }
+      this.dragFollowParent = { x: node.x, y: node.y };
       this.dragAlpha = this.alpha;
       this.dragSettled = this.settled;
       this.alpha = 0;
@@ -1126,22 +1212,14 @@ class GraphView {
     const point = this.screen(event);
     if (this.dragNode) {
       const world = this.world(point);
-      const dx = world.x - this.dragNode.x;
-      const dy = world.y - this.dragNode.y;
       this.dragNode.x = world.x;
       this.dragNode.y = world.y;
       this.dragNode.vx = 0;
       this.dragNode.vy = 0;
-      for (const id of this.dragIds) {
-        const child = this.byId.get(id);
-        if (!child) continue;
-        child.x += dx;
-        child.y += dy;
-        child.vx = 0;
-        child.vy = 0;
-      }
+      this.dragFollowParent = { x: world.x, y: world.y };
       this.moved = true;
-      this.requestDraw();
+      if (this.dragOffsets.size) this.startDragFollow();
+      else this.requestDraw();
       return;
     }
     if (this.pan) {
@@ -1179,11 +1257,12 @@ class GraphView {
       this.dragIds = new Set();
       this.canvas.classList.remove('dragging');
       if (this.moved) {
-        for (const item of this.nodes) item.fixed = false;
-        this.savePositions();
-        this.settled = true;
-        if (this.selected && this.adjacent.size) this.start();
+        this.dragFollowParent = { x: node.x, y: node.y };
+        this.dragReleasePending = true;
+        if (this.dragOffsets.size) this.startDragFollow();
+        else this.finishDragFollow();
       } else {
+        this.cancelDragFollow(false);
         this.alpha = this.dragAlpha;
         this.settled = this.dragSettled;
         this.select(node.id);
