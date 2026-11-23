@@ -86,6 +86,10 @@
     this.dragIds = new Set();
     this.dragAlpha = 0;
     this.dragSettled = true;
+    this.dragOffsets = new Map();
+    this.dragFollowParent = { x: 0, y: 0 };
+    this.dragFollowFrame = null;
+    this.dragReleasePending = false;
     this.pan = null;
     this.moved = false;
     this.dpr = Math.min(2, global.devicePixelRatio || 1);
@@ -128,8 +132,10 @@
   SidebarGraphView.prototype.stop = function stop() {
     if (this.frame) global.cancelAnimationFrame(this.frame);
     if (this.drawFrame) global.cancelAnimationFrame(this.drawFrame);
+    if (this.dragFollowFrame) global.cancelAnimationFrame(this.dragFollowFrame);
     this.frame = null;
     this.drawFrame = null;
+    this.dragFollowFrame = null;
     if (this.observer) this.observer.disconnect();
   };
 
@@ -340,6 +346,70 @@
     });
   };
 
+  SidebarGraphView.prototype.startDragFollow = function startDragFollow() {
+    if (this.dragFollowFrame) return;
+    var self = this;
+    this.dragFollowFrame = global.requestAnimationFrame(function () { self.followDrag(); });
+  };
+
+  SidebarGraphView.prototype.followDrag = function followDrag() {
+    this.dragFollowFrame = null;
+    if (!this.dragOffsets.size) {
+      this.finishDragFollow();
+      return;
+    }
+    var base = this.dragFollowParent;
+    var settled = true;
+    var self = this;
+    this.dragOffsets.forEach(function (offset, id) {
+      var child = self.byId.get(id);
+      if (!child) return;
+      var tx = base.x + offset.x;
+      var ty = base.y + offset.y;
+      var dx = tx - child.x;
+      var dy = ty - child.y;
+      if (Math.abs(dx) > 0.35 || Math.abs(dy) > 0.35) {
+        var factor = Math.max(0.14, 0.3 - ((offset.depth || 1) - 1) * 0.04);
+        child.x += dx * factor;
+        child.y += dy * factor;
+        child.vx = 0;
+        child.vy = 0;
+        settled = false;
+      } else {
+        child.x = tx;
+        child.y = ty;
+      }
+    });
+    this.draw();
+    if (!settled) {
+      this.startDragFollow();
+      return;
+    }
+    this.finishDragFollow();
+  };
+
+  SidebarGraphView.prototype.finishDragFollow = function finishDragFollow() {
+    if (this.dragNode || !this.dragReleasePending) return;
+    this.dragReleasePending = false;
+    for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
+    this.savePositions();
+    this.settled = true;
+    this.dragOffsets = new Map();
+    if (this.selected && this.adjacent.size) this.start();
+  };
+
+  SidebarGraphView.prototype.cancelDragFollow = function cancelDragFollow(save) {
+    if (this.dragFollowFrame) global.cancelAnimationFrame(this.dragFollowFrame);
+    this.dragFollowFrame = null;
+    this.dragReleasePending = false;
+    if (save) {
+      for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
+      this.savePositions();
+      this.settled = true;
+    }
+    this.dragOffsets = new Map();
+  };
+
   SidebarGraphView.prototype.savePositions = function savePositions() {
     for (var i = 0; i < this.nodes.length; i += 1) {
       var node = this.nodes[i];
@@ -357,7 +427,7 @@
     this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     var active = this.step();
     this.draw();
-    if (!active && !this.settled && !this.dragNode) {
+    if (!active && !this.settled && !this.dragNode && !this.dragReleasePending) {
       this.settled = true;
       for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
       this.savePositions();
@@ -365,7 +435,7 @@
         this.callbacks.onStats({ nodes: this.nodes.length, edges: this.edges.length });
       }
     }
-    if (!this.dragNode && (active || (this.selected && this.adjacent.size))) {
+    if (!this.dragNode && !this.dragReleasePending && (active || (this.selected && this.adjacent.size))) {
       var self = this;
       this.frame = global.requestAnimationFrame(function () { self.loop(); });
     }
@@ -373,7 +443,7 @@
 
   SidebarGraphView.prototype.step = function step() {
     var nodes = this.nodes;
-    if (!nodes.length) return false;
+    if (!nodes.length || this.dragReleasePending) return false;
     if (this.ticks > 260 || this.alpha < 0.015) {
       this.alpha = 0;
       return false;
@@ -624,9 +694,34 @@
     if (event.pointerId != null && this.canvas.setPointerCapture) {
       try { this.canvas.setPointerCapture(event.pointerId); } catch (error) {}
     }
+    if (!this.dragNode && (this.dragFollowFrame || this.dragReleasePending)) {
+      this.cancelDragFollow(true);
+    }
     if (node) {
+      var self = this;
       this.dragNode = node;
       this.dragIds = this.descendantsOf(node.id);
+      this.dragOffsets = new Map();
+      var queue = [{ id: node.id, depth: 0 }];
+      var seen = new Set([node.id]);
+      while (queue.length) {
+        var item = queue.shift();
+        var kids = this.childIds.get(item.id) || [];
+        for (var k = 0; k < kids.length; k += 1) {
+          var id = kids[k];
+          if (seen.has(id)) continue;
+          seen.add(id);
+          var child = self.byId.get(id);
+          if (!child) continue;
+          this.dragOffsets.set(id, {
+            x: child.x - node.x,
+            y: child.y - node.y,
+            depth: item.depth + 1
+          });
+          queue.push({ id: id, depth: item.depth + 1 });
+        }
+      }
+      this.dragFollowParent = { x: node.x, y: node.y };
       this.dragAlpha = this.alpha;
       this.dragSettled = this.settled;
       this.alpha = 0;
@@ -646,23 +741,14 @@
     var point = this.screen(event);
     if (this.dragNode) {
       var world = this.world(point);
-      var dx = world.x - this.dragNode.x;
-      var dy = world.y - this.dragNode.y;
       this.dragNode.x = world.x;
       this.dragNode.y = world.y;
       this.dragNode.vx = 0;
       this.dragNode.vy = 0;
-      var self = this;
-      this.dragIds.forEach(function (id) {
-        var child = self.byId.get(id);
-        if (!child) return;
-        child.x += dx;
-        child.y += dy;
-        child.vx = 0;
-        child.vy = 0;
-      });
+      this.dragFollowParent = { x: world.x, y: world.y };
       this.moved = true;
-      this.requestDraw();
+      if (this.dragOffsets.size) this.startDragFollow();
+      else this.requestDraw();
       return;
     }
     if (this.pan) {
@@ -701,11 +787,12 @@
       this.dragIds = new Set();
       this.canvas.classList.remove('dragging');
       if (this.moved) {
-        for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
-        this.savePositions();
-        this.settled = true;
-        if (this.selected && this.adjacent.size) this.start();
+        this.dragFollowParent = { x: node.x, y: node.y };
+        this.dragReleasePending = true;
+        if (this.dragOffsets.size) this.startDragFollow();
+        else this.finishDragFollow();
       } else {
+        this.cancelDragFollow(false);
         this.alpha = this.dragAlpha;
         this.settled = this.dragSettled;
         this.select(node.id);
