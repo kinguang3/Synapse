@@ -70,19 +70,25 @@
     this.edges = [];
     this.byId = new Map();
     this.positions = new Map();
+    this.childIds = new Map();
     this.transform = { x: 0, y: 0, k: 1 };
     this.alpha = 0;
     this.frame = null;
+    this.drawFrame = null;
     this.ticks = 0;
     this.edgeFlow = 0;
     this.settled = false;
     this.nodeDistance = CORE.DEFAULT_GRAPH_SETTINGS.nodeDistance;
     this.selected = null;
+    this.adjacent = new Set();
     this.hover = null;
     this.dragNode = null;
+    this.dragIds = new Set();
+    this.dragAlpha = 0;
+    this.dragSettled = true;
     this.pan = null;
     this.moved = false;
-    this.dpr = global.devicePixelRatio || 1;
+    this.dpr = Math.min(2, global.devicePixelRatio || 1);
     this.width = 0;
     this.height = 0;
     this.bind();
@@ -121,36 +127,53 @@
 
   SidebarGraphView.prototype.stop = function stop() {
     if (this.frame) global.cancelAnimationFrame(this.frame);
+    if (this.drawFrame) global.cancelAnimationFrame(this.drawFrame);
     this.frame = null;
+    this.drawFrame = null;
     if (this.observer) this.observer.disconnect();
   };
 
   SidebarGraphView.prototype.setData = function setData(nodes, edges, options) {
     var opts = options || {};
+    var incremental = this.nodes.length > 0 && opts.incremental !== false;
     var previous = new Map(this.nodes.map(function (node) { return [node.id, node]; }));
-    this.nodes = (nodes || []).map(function (node, index) {
+    var added = 0;
+    var nextNodes = (nodes || []).map(function (node, index) {
       var old = previous.get(node.id) || this.positions.get(node.id);
-      var angle = index * 2.399963229728653;
-      var radius = 90 + Math.sqrt(index + 1) * 34;
+      if (!old) added += 1;
       return {
         id: node.id,
         title: node.title,
+        label: truncate(node.title, 28),
         type: node.type,
         kind: node.kind || 'node',
         synthetic: Boolean(node.synthetic),
         path: node.path,
         lines: node.lines || '',
+        parentId: node.parentId || null,
         salience: Number(node.salience == null ? 0.5 : node.salience),
         expandable: Boolean(node.expandable),
         expanded: Boolean(node.expanded),
         degree: 0,
-        x: old ? old.x : Math.cos(angle) * radius,
-        y: old ? old.y : Math.sin(angle) * radius,
+        index: index,
+        x: old ? old.x : 0,
+        y: old ? old.y : 0,
         vx: 0,
-        vy: 0
+        vy: 0,
+        fixed: incremental && Boolean(old)
       };
     }, this);
-    this.byId = new Map(this.nodes.map(function (node) { return [node.id, node]; }));
+    this.nodes = nextNodes;
+    for (var c = 0; c < this.nodes.length; c += 1) {
+      var currentNode = this.nodes[c];
+      currentNode.color = CORE.nodeColor(currentNode);
+      currentNode.baseRadius = currentNode.kind === 'group'
+        ? 8 + currentNode.salience * 5
+        : 4.5 + currentNode.salience * 8;
+    }
+    this.byId = new Map(this.nodes.map(function (node) { return [node.id, node]; }, this));
+    if (this.selected && !this.byId.has(this.selected)) this.selected = null;
+    if (this.hover && !this.byId.has(this.hover.id)) this.hover = null;
     this.edges = (edges || [])
       .filter(function (edge) { return this.byId.has(edge.from) && this.byId.has(edge.to); }, this)
       .map(function (edge) {
@@ -162,18 +185,113 @@
           synthetic: Boolean(edge.synthetic)
         };
       });
+    for (var ec = 0; ec < this.edges.length; ec += 1) {
+      var currentEdge = this.edges[ec];
+      var fromNode = this.byId.get(currentEdge.from);
+      var toNode = this.byId.get(currentEdge.to);
+      currentEdge.crossFile = Boolean(!currentEdge.synthetic && fromNode.path && toNode.path &&
+        fromNode.path !== toNode.path);
+      currentEdge.color = CORE.relationColor(currentEdge.type);
+    }
+    this.updateAdjacent();
+    this.childIds = new Map();
+    for (var i = 0; i < this.nodes.length; i += 1) {
+      var current = this.nodes[i];
+      if (!current.parentId) continue;
+      var bucket = this.childIds.get(current.parentId);
+      if (!bucket) {
+        bucket = [];
+        this.childIds.set(current.parentId, bucket);
+      }
+      bucket.push(current.id);
+    }
+    if (this.dragNode) {
+      var dragId = this.dragNode.id;
+      this.dragNode = this.byId.get(dragId) || null;
+      this.dragIds = this.dragNode ? this.descendantsOf(dragId) : new Set();
+      this.dragAlpha = this.alpha;
+      this.dragSettled = this.settled;
+      if (!this.dragNode) this.canvas.classList.remove('dragging');
+    }
+
+    if (incremental && added) this.placeAddedNodes(previous);
+    if (!incremental) {
+      for (var j = 0; j < this.nodes.length; j += 1) {
+        var node = this.nodes[j];
+        if (previous.has(node.id) || this.positions.has(node.id)) continue;
+        var angle = node.index * 2.399963229728653;
+        var radius = 90 + Math.sqrt(node.index + 1) * 34;
+        node.x = Math.cos(angle) * radius;
+        node.y = Math.sin(angle) * radius;
+      }
+    }
+
     this.computeDegree();
-    this.alpha = 1;
-    this.ticks = 0;
-    this.settled = false;
+    if (incremental) {
+      if (added) {
+        this.alpha = Math.max(this.alpha, 0.32);
+        this.ticks = 0;
+        this.settled = false;
+      } else if (this.settled) {
+        this.alpha = 0;
+        this.ticks = 0;
+      }
+    } else {
+      this.alpha = 1;
+      this.ticks = 0;
+      this.settled = false;
+    }
     if (opts.fit !== false) this.fit();
     this.start();
+  };
+
+  SidebarGraphView.prototype.placeAddedNodes = function placeAddedNodes(previous) {
+    var placed = new Set();
+    function existingPoint() {
+      var sx = 0;
+      var sy = 0;
+      var count = 0;
+      for (var i = 0; i < this.nodes.length; i += 1) {
+        var node = this.nodes[i];
+        if (node.fixed || previous.has(node.id) || placed.has(node.id)) {
+          sx += node.x;
+          sy += node.y;
+          count += 1;
+        }
+      }
+      return count ? { x: sx / count, y: sy / count } : { x: 0, y: 0 };
+    }
+    var anchor = null;
+    var index = 0;
+    function placeNode(node, visiting) {
+      if (node.fixed || placed.has(node.id) || previous.has(node.id)) return;
+      if (visiting.has(node.id)) return;
+      visiting.add(node.id);
+      if (!anchor) anchor = existingPoint.call(this);
+      var parent = node.parentId ? this.byId.get(node.parentId) : null;
+      if (parent && !parent.fixed && previous.has(parent.id) === false && !placed.has(parent.id)) {
+        placeNode.call(this, parent, visiting);
+      }
+      var base = parent && (parent.fixed || previous.has(parent.id) || placed.has(parent.id))
+        ? parent
+        : anchor;
+      var step = index * 2.399963229728653;
+      var radius = this.nodeDistance * (0.62 + (index % 4) * 0.07);
+      node.x = base.x + Math.cos(step) * radius;
+      node.y = base.y + Math.sin(step) * radius;
+      placed.add(node.id);
+      index += 1;
+    }
+    for (var i = 0; i < this.nodes.length; i += 1) {
+      placeNode.call(this, this.nodes[i], new Set());
+    }
   };
 
   SidebarGraphView.prototype.setNodeDistance = function setNodeDistance(value) {
     var next = CORE.normalizeGraphSettings({ nodeDistance: value }).nodeDistance;
     if (next === this.nodeDistance) return;
     this.nodeDistance = next;
+    for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
     this.alpha = Math.max(this.alpha, 0.45);
     this.ticks = 0;
     this.settled = false;
@@ -181,8 +299,19 @@
     this.draw();
   };
 
+  SidebarGraphView.prototype.updateAdjacent = function updateAdjacent() {
+    this.adjacent = new Set();
+    if (!this.selected) return;
+    for (var i = 0; i < this.edges.length; i += 1) {
+      var edge = this.edges[i];
+      if (edge.from === this.selected) this.adjacent.add(edge.to);
+      if (edge.to === this.selected) this.adjacent.add(edge.from);
+    }
+  };
+
   SidebarGraphView.prototype.clearSelection = function clearSelection() {
     this.selected = null;
+    this.updateAdjacent();
     this.draw();
   };
 
@@ -202,22 +331,41 @@
     this.frame = global.requestAnimationFrame(function () { self.loop(); });
   };
 
+  SidebarGraphView.prototype.requestDraw = function requestDraw() {
+    if (this.drawFrame) return;
+    var self = this;
+    this.drawFrame = global.requestAnimationFrame(function () {
+      self.drawFrame = null;
+      self.draw();
+    });
+  };
+
+  SidebarGraphView.prototype.savePositions = function savePositions() {
+    for (var i = 0; i < this.nodes.length; i += 1) {
+      var node = this.nodes[i];
+      this.positions.set(node.id, { x: node.x, y: node.y });
+    }
+  };
+
+  SidebarGraphView.prototype.clearPositions = function clearPositions() {
+    this.positions.clear();
+    this.adjacent = new Set();
+  };
+
   SidebarGraphView.prototype.loop = function loop() {
     this.frame = null;
     this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     var active = this.step();
     this.draw();
-    if (!active && !this.settled) {
+    if (!active && !this.settled && !this.dragNode) {
       this.settled = true;
-      for (var i = 0; i < this.nodes.length; i += 1) {
-        var node = this.nodes[i];
-        this.positions.set(node.id, { x: node.x, y: node.y });
-      }
+      for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
+      this.savePositions();
       if (this.callbacks.onStats) {
         this.callbacks.onStats({ nodes: this.nodes.length, edges: this.edges.length });
       }
     }
-    if (active || this.edges.length) {
+    if (!this.dragNode && (active || (this.selected && this.adjacent.size))) {
       var self = this;
       this.frame = global.requestAnimationFrame(function () { self.loop(); });
     }
@@ -228,15 +376,20 @@
     if (!nodes.length) return false;
     if (this.ticks > 260 || this.alpha < 0.015) {
       this.alpha = 0;
-      return Boolean(this.dragNode);
+      return false;
     }
     this.ticks += 1;
     this.alpha *= 0.986;
     var repulsion = 1500;
-    for (var i = 0; i < nodes.length; i += 1) {
-      var a = nodes[i];
-      for (var j = i + 1; j < nodes.length; j += 1) {
+    var movable = [];
+    for (var m = 0; m < nodes.length; m += 1) {
+      if (!nodes[m].fixed) movable.push(nodes[m]);
+    }
+    for (var i = 0; i < movable.length; i += 1) {
+      var a = movable[i];
+      for (var j = 0; j < nodes.length; j += 1) {
         var b = nodes[j];
+        if (a === b || (!b.fixed && b.index < a.index)) continue;
         var dx = a.x - b.x;
         var dy = a.y - b.y;
         var dist2 = dx * dx + dy * dy;
@@ -251,15 +404,17 @@
         var fy = (dy / dist) * force * this.alpha;
         a.vx += fx;
         a.vy += fy;
-        b.vx -= fx;
-        b.vy -= fy;
+        if (!b.fixed) {
+          b.vx -= fx;
+          b.vy -= fy;
+        }
       }
     }
     for (var k = 0; k < this.edges.length; k += 1) {
       var edge = this.edges[k];
       var start = this.byId.get(edge.from);
       var end = this.byId.get(edge.to);
-      if (!start || !end) continue;
+      if (!start || !end || (start.fixed && end.fixed)) continue;
       var ex = end.x - start.x;
       var ey = end.y - start.y;
       var length = Math.max(1, Math.sqrt(ex * ex + ey * ey));
@@ -267,18 +422,22 @@
       var pull = (length - rest) * 0.012 * this.alpha;
       var px = (ex / length) * pull;
       var py = (ey / length) * pull;
-      start.vx += px;
-      start.vy += py;
-      end.vx -= px;
-      end.vy -= py;
+      if (!start.fixed) {
+        start.vx += px;
+        start.vy += py;
+      }
+      if (!end.fixed) {
+        end.vx -= px;
+        end.vy -= py;
+      }
     }
-    for (var n = 0; n < nodes.length; n += 1) {
-      var node = nodes[n];
+    for (var n = 0; n < movable.length; n += 1) {
+      var node = movable[n];
       node.vx += (0 - node.x) * 0.0016;
       node.vy += (0 - node.y) * 0.0016;
       node.vx *= 0.86;
       node.vy *= 0.86;
-      var speed = Math.hypot(node.vx, node.vy);
+      var speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
       if (speed > 9) {
         node.vx = (node.vx / speed) * 9;
         node.vy = (node.vy / speed) * 9;
@@ -304,13 +463,7 @@
 
     var selected = this.selected;
     var hover = this.hover;
-    var adjacent = new Set();
-    if (selected) {
-      for (var i = 0; i < this.edges.length; i += 1) {
-        if (this.edges[i].from === selected) adjacent.add(this.edges[i].to);
-        if (this.edges[i].to === selected) adjacent.add(this.edges[i].from);
-      }
-    }
+    var adjacent = this.adjacent;
 
     for (var e = 0; e < this.edges.length; e += 1) {
       var edge = this.edges[e];
@@ -319,15 +472,21 @@
       if (!a || !b) continue;
       var active = selected && (edge.from === selected || edge.to === selected);
       var dim = selected && !active;
-      var color = CORE.relationColor(edge.type);
-      ctx.setLineDash(edge.synthetic ? [2, 6] : [7, 5]);
-      ctx.lineDashOffset = edge.synthetic ? this.edgeFlow * 0.6 : -this.edgeFlow;
+      var crossFile = edge.crossFile;
+      var color = edge.color;
+      if (active) {
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -this.edgeFlow;
+      } else {
+        ctx.setLineDash(edge.synthetic ? [2, 6] : crossFile ? [3, 7] : [4, 6]);
+        ctx.lineDashOffset = 0;
+      }
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.strokeStyle = color;
-      ctx.globalAlpha = dim ? 0.12 : active ? 0.95 : edge.synthetic ? 0.4 : 0.62;
-      ctx.lineWidth = active ? 1.5 : 0.9;
+      ctx.globalAlpha = active ? 0.92 : dim ? 0.04 : edge.synthetic ? 0.18 : crossFile ? 0.14 : 0.28;
+      ctx.lineWidth = active ? 1.35 : crossFile ? 0.55 : 0.7;
       ctx.stroke();
       if (active) {
         var angle = Math.atan2(b.y - a.y, b.x - a.x);
@@ -368,9 +527,9 @@
     for (var j = 0; j < this.nodes.length; j += 1) {
       var node = this.nodes[j];
       var radius = node.kind === 'group'
-        ? 8 + node.salience * 5
-        : 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
-      var color = CORE.nodeColor(node);
+        ? node.baseRadius
+        : node.baseRadius + (node === hover ? 1.5 : 0);
+      var color = node.color;
       var dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
       ctx.fillStyle = color;
@@ -404,13 +563,11 @@
       var important = current.degree >= 7 && showLabels;
       var always = showLabels && (current.kind === 'group' || this.nodes.length <= 40);
       if (!focused && !important && !always) continue;
-      var labelRadius = current.kind === 'group'
-        ? 8 + current.salience * 5
-        : 4.5 + current.salience * 8;
+      var labelRadius = current.baseRadius;
       ctx.font = focused ? '600 11px Geist, "Segoe UI", sans-serif' : '10px Geist, "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      var label = truncate(current.title, 28);
+      var label = current.label;
       var metrics = ctx.measureText(label);
       ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
       ctx.fillRect(current.x - metrics.width / 2 - 3, current.y - labelRadius - 17, metrics.width + 6, 14);
@@ -437,19 +594,42 @@
     var point = this.world(this.screen(event));
     for (var i = this.nodes.length - 1; i >= 0; i -= 1) {
       var node = this.nodes[i];
-      var radius = node.kind === 'group'
-        ? 16 + node.salience * 5
-        : 4.5 + node.salience * 8 + 4;
-      if (Math.hypot(node.x - point.x, node.y - point.y) <= radius) return node;
+      var radius = node.kind === 'group' ? node.baseRadius + 8 : node.baseRadius + 4;
+      var dx = node.x - point.x;
+      var dy = node.y - point.y;
+      if (dx * dx + dy * dy <= radius * radius) return node;
     }
     return null;
+  };
+
+  SidebarGraphView.prototype.descendantsOf = function descendantsOf(id) {
+    var out = new Set();
+    var stack = [id];
+    while (stack.length) {
+      var bucket = this.childIds.get(stack.pop());
+      if (!bucket) continue;
+      for (var i = 0; i < bucket.length; i += 1) {
+        var child = bucket[i];
+        if (child === id || out.has(child)) continue;
+        out.add(child);
+        stack.push(child);
+      }
+    }
+    return out;
   };
 
   SidebarGraphView.prototype.onDown = function onDown(event) {
     var node = this.pick(event);
     this.moved = false;
+    if (event.pointerId != null && this.canvas.setPointerCapture) {
+      try { this.canvas.setPointerCapture(event.pointerId); } catch (error) {}
+    }
     if (node) {
       this.dragNode = node;
+      this.dragIds = this.descendantsOf(node.id);
+      this.dragAlpha = this.alpha;
+      this.dragSettled = this.settled;
+      this.alpha = 0;
       this.canvas.classList.add('dragging');
     } else {
       var point = this.screen(event);
@@ -466,20 +646,30 @@
     var point = this.screen(event);
     if (this.dragNode) {
       var world = this.world(point);
+      var dx = world.x - this.dragNode.x;
+      var dy = world.y - this.dragNode.y;
       this.dragNode.x = world.x;
       this.dragNode.y = world.y;
       this.dragNode.vx = 0;
       this.dragNode.vy = 0;
+      var self = this;
+      this.dragIds.forEach(function (id) {
+        var child = self.byId.get(id);
+        if (!child) return;
+        child.x += dx;
+        child.y += dy;
+        child.vx = 0;
+        child.vy = 0;
+      });
       this.moved = true;
-      this.alpha = Math.max(this.alpha, 0.25);
-      this.draw();
+      this.requestDraw();
       return;
     }
     if (this.pan) {
       this.transform.x = this.pan.ox + (point.x - this.pan.sx);
       this.transform.y = this.pan.oy + (point.y - this.pan.sy);
       if (Math.abs(point.x - this.pan.sx) + Math.abs(point.y - this.pan.sy) > 3) this.moved = true;
-      this.draw();
+      this.requestDraw();
       return;
     }
     var node = this.pick(event);
@@ -502,11 +692,22 @@
   };
 
   SidebarGraphView.prototype.onUp = function onUp(event) {
+    if (event && event.pointerId != null && this.canvas.releasePointerCapture) {
+      try { this.canvas.releasePointerCapture(event.pointerId); } catch (error) {}
+    }
     if (this.dragNode) {
       var node = this.dragNode;
       this.dragNode = null;
+      this.dragIds = new Set();
       this.canvas.classList.remove('dragging');
-      if (!this.moved) {
+      if (this.moved) {
+        for (var i = 0; i < this.nodes.length; i += 1) this.nodes[i].fixed = false;
+        this.savePositions();
+        this.settled = true;
+        if (this.selected && this.adjacent.size) this.start();
+      } else {
+        this.alpha = this.dragAlpha;
+        this.settled = this.dragSettled;
         this.select(node.id);
         if (this.callbacks.onSelect) this.callbacks.onSelect(node.id);
       }
@@ -524,7 +725,7 @@
     this.transform.k = next;
     this.transform.x = point.x - world.x * next;
     this.transform.y = point.y - world.y * next;
-    this.draw();
+    this.requestDraw();
   };
 
   SidebarGraphView.prototype.hideTip = function hideTip() {
@@ -537,17 +738,21 @@
 
   SidebarGraphView.prototype.select = function select(id) {
     this.selected = id;
+    this.updateAdjacent();
     this.draw();
+    if ((id && this.adjacent.size) || this.alpha > 0) this.start();
   };
 
   SidebarGraphView.prototype.focusNode = function focusNode(id) {
     var node = this.byId.get(id);
     if (!node) return;
     this.selected = id;
+    this.updateAdjacent();
     this.transform.k = Math.max(1.1, this.transform.k);
     this.transform.x = this.width / 2 - node.x * this.transform.k;
     this.transform.y = this.height / 2 - node.y * this.transform.k;
     this.draw();
+    if (this.adjacent.size || this.alpha > 0) this.start();
   };
 
   SidebarGraphView.prototype.fit = function fit() {
@@ -802,6 +1007,7 @@
         synthetic: node.synthetic,
         path: node.path,
         lines: node.start_line ? node.start_line + '-' + (node.end_line || node.start_line) : '',
+        parentId: cfg.store.parents.get(node.id) || null,
         salience: node.salience,
         expandable: Boolean(node.expandable),
         expanded: cfg.store.expanded.has(node.id)
@@ -837,7 +1043,7 @@
           };
         });
       var first = graph.nodes.length === 0;
-      graph.setData(nodes, edges, { fit: first && opts.fit !== false });
+      graph.setData(nodes, edges, { fit: first && opts.fit !== false, incremental: !first });
       renderChrome();
     }
 
@@ -1476,10 +1682,11 @@
         state.epoch += 1;
         state.detailId = null;
         closeDetail();
-        if (graph) {
-          graph.clearSelection();
-          graph.setData([], [], { fit: false });
-        }
+      if (graph) {
+        graph.clearSelection();
+        graph.setData([], [], { fit: false });
+        graph.clearPositions();
+      }
       }
       if (!state.projectId) {
         showEmpty('请选择项目', '连接本地服务并选择项目后加载知识图谱。');
