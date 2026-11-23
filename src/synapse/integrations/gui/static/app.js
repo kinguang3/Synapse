@@ -83,7 +83,7 @@ const state = {
   graphDetailId: null,
   graphDetailEpoch: 0,
   graphFocusId: null,
-  graphPositions: {},
+  graphPositions: Object.create(null),
   overview: null,
   memory: createMemoryState(),
   search: { last: null },
@@ -557,18 +557,24 @@ class GraphView {
     this.nodes = [];
     this.edges = [];
     this.byId = new Map();
+    this.childIds = new Map();
     this.transform = { x: 0, y: 0, k: 1 };
     this.alpha = 0;
     this.frame = null;
+    this.drawFrame = null;
     this.ticks = 0;
     this.edgeFlow = 0;
     this.settled = false;
     this.selected = null;
+    this.adjacent = new Set();
     this.hover = null;
     this.dragNode = null;
+    this.dragIds = new Set();
+    this.dragAlpha = 0;
+    this.dragSettled = true;
     this.pan = null;
     this.moved = false;
-    this.dpr = window.devicePixelRatio || 1;
+    this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.width = 0;
     this.height = 0;
     this.onStats = null;
@@ -607,36 +613,49 @@ class GraphView {
 
   stop() {
     if (this.frame) cancelAnimationFrame(this.frame);
+    if (this.drawFrame) cancelAnimationFrame(this.drawFrame);
     this.frame = null;
+    this.drawFrame = null;
     if (this.observer) this.observer.disconnect();
   }
 
   setData(nodes, edges, options) {
     const opts = options || {};
+    const incremental = this.nodes.length > 0 && opts.incremental !== false;
     const previous = new Map(this.nodes.map((node) => [node.id, node]));
+    let added = 0;
     this.nodes = (nodes || []).map((node, index) => {
       const old = previous.get(node.id) || state.graphPositions[node.id];
-      const angle = index * 2.399963229728653;
-      const radius = 90 + Math.sqrt(index + 1) * 34;
+      if (!old) added += 1;
       return {
         id: node.id,
         title: node.title,
+        label: truncate(node.title, 28),
         type: node.type,
         kind: node.kind || 'node',
         synthetic: Boolean(node.synthetic),
         path: node.path,
         lines: node.lines || '',
+        parentId: node.parentId || null,
         salience: Number(node.salience == null ? 0.5 : node.salience),
         expandable: Boolean(node.expandable),
         expanded: Boolean(node.expanded),
         degree: 0,
-        x: old ? old.x : Math.cos(angle) * radius,
-        y: old ? old.y : Math.sin(angle) * radius,
+        index,
+        x: old ? old.x : 0,
+        y: old ? old.y : 0,
         vx: 0,
         vy: 0,
+        fixed: incremental && Boolean(old),
       };
     });
+    for (const node of this.nodes) {
+      node.color = graphNodeColor(node);
+      node.baseRadius = node.kind === 'group' ? 8 + node.salience * 5 : 4.5 + node.salience * 8;
+    }
     this.byId = new Map(this.nodes.map((node) => [node.id, node]));
+    if (this.selected && !this.byId.has(this.selected)) this.selected = null;
+    if (this.hover && !this.byId.has(this.hover.id)) this.hover = null;
     this.edges = (edges || [])
       .filter((edge) => this.byId.has(edge.from) && this.byId.has(edge.to))
       .map((edge) => ({
@@ -646,12 +665,95 @@ class GraphView {
         confidence: Number(edge.confidence == null ? 0.5 : edge.confidence),
         synthetic: Boolean(edge.synthetic),
       }));
+    for (const edge of this.edges) {
+      const fromNode = this.byId.get(edge.from);
+      const toNode = this.byId.get(edge.to);
+      edge.crossFile = Boolean(!edge.synthetic && fromNode.path && toNode.path &&
+        fromNode.path !== toNode.path);
+      edge.color = graphRelationColor(edge.type);
+    }
+    this.updateAdjacent();
+    this.childIds = new Map();
+    for (const node of this.nodes) {
+      if (!node.parentId) continue;
+      const bucket = this.childIds.get(node.parentId) || [];
+      bucket.push(node.id);
+      this.childIds.set(node.parentId, bucket);
+    }
+    if (this.dragNode) {
+      const dragId = this.dragNode.id;
+      this.dragNode = this.byId.get(dragId) || null;
+      this.dragIds = this.dragNode ? this.descendantsOf(dragId) : new Set();
+      this.dragAlpha = this.alpha;
+      this.dragSettled = this.settled;
+      if (!this.dragNode) this.canvas.classList.remove('dragging');
+    }
+
+    if (incremental && added) this.placeAddedNodes(previous);
+    if (!incremental) {
+      for (const node of this.nodes) {
+        if (previous.has(node.id) || state.graphPositions[node.id]) continue;
+        const angle = node.index * 2.399963229728653;
+        const radius = 90 + Math.sqrt(node.index + 1) * 34;
+        node.x = Math.cos(angle) * radius;
+        node.y = Math.sin(angle) * radius;
+      }
+    }
+
     this.computeDegree();
-    this.alpha = 1;
-    this.ticks = 0;
-    this.settled = false;
+    if (incremental) {
+      if (added) {
+        this.alpha = Math.max(this.alpha, 0.32);
+        this.ticks = 0;
+        this.settled = false;
+      } else if (this.settled) {
+        this.alpha = 0;
+        this.ticks = 0;
+      }
+    } else {
+      this.alpha = 1;
+      this.ticks = 0;
+      this.settled = false;
+    }
     if (opts.fit !== false) this.fit();
     this.start();
+  }
+
+  placeAddedNodes(previous) {
+    const placed = new Set();
+    const existingPoint = () => {
+      let sx = 0;
+      let sy = 0;
+      let count = 0;
+      for (const node of this.nodes) {
+        if (!node.fixed && !previous.has(node.id) && !placed.has(node.id)) continue;
+        sx += node.x;
+        sy += node.y;
+        count += 1;
+      }
+      return count ? { x: sx / count, y: sy / count } : { x: 0, y: 0 };
+    };
+    const anchor = existingPoint();
+    let index = 0;
+    const placeNode = (node, visiting) => {
+      if (node.fixed || placed.has(node.id) || previous.has(node.id)) return;
+      if (visiting.has(node.id)) return;
+      visiting.add(node.id);
+      const parent = node.parentId ? this.byId.get(node.parentId) : null;
+      if (parent && !parent.fixed && !previous.has(parent.id) && !placed.has(parent.id)) {
+        placeNode(parent, visiting);
+      }
+      const base = parent && (parent.fixed || previous.has(parent.id) || placed.has(parent.id))
+        ? parent
+        : anchor;
+      const step = index * 2.399963229728653;
+      const radius = 68 * (0.62 + (index % 4) * 0.07);
+      node.x = base.x + Math.cos(step) * radius;
+      node.y = base.y + Math.sin(step) * radius;
+      placed.add(node.id);
+      index += 1;
+    };
+    for (const node of this.nodes) placeNode(node, new Set());
   }
 
   setNodeFlag(id, key, value) {
@@ -661,8 +763,18 @@ class GraphView {
     this.draw();
   }
 
+  updateAdjacent() {
+    this.adjacent = new Set();
+    if (!this.selected) return;
+    for (const edge of this.edges) {
+      if (edge.from === this.selected) this.adjacent.add(edge.to);
+      if (edge.to === this.selected) this.adjacent.add(edge.from);
+    }
+  }
+
   clearSelection() {
     this.selected = null;
+    this.updateAdjacent();
     this.draw();
   }
 
@@ -726,17 +838,32 @@ class GraphView {
     this.frame = requestAnimationFrame(() => this.loop());
   }
 
+  requestDraw() {
+    if (this.drawFrame) return;
+    this.drawFrame = requestAnimationFrame(() => {
+      this.drawFrame = null;
+      this.draw();
+    });
+  }
+
+  savePositions() {
+    for (const node of this.nodes) {
+      state.graphPositions[node.id] = { x: node.x, y: node.y };
+    }
+  }
+
   loop() {
     this.frame = null;
     this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     const active = this.step();
     this.draw();
-    if (!active && !this.settled) {
+    if (!active && !this.settled && !this.dragNode) {
       this.settled = true;
-      for (const node of this.nodes) state.graphPositions[node.id] = { x: node.x, y: node.y };
+      for (const node of this.nodes) node.fixed = false;
+      this.savePositions();
       this.report();
     }
-    if (active || this.edges.length) {
+    if (!this.dragNode && (active || (this.selected && this.adjacent.size))) {
       this.frame = requestAnimationFrame(() => this.loop());
     }
   }
@@ -746,17 +873,17 @@ class GraphView {
     if (!nodes.length) return false;
     if (this.ticks > 260 || this.alpha < 0.015) {
       this.alpha = 0;
-      return !!this.dragNode;
+      return false;
     }
     this.ticks += 1;
     this.alpha *= 0.986;
     const cx = 0;
     const cy = 0;
     const repulsion = 1500;
-    for (let i = 0; i < nodes.length; i += 1) {
-      const a = nodes[i];
-      for (let j = i + 1; j < nodes.length; j += 1) {
-        const b = nodes[j];
+    const movable = nodes.filter((node) => !node.fixed);
+    for (const a of movable) {
+      for (const b of nodes) {
+        if (a === b || (!b.fixed && b.index < a.index)) continue;
         let dx = a.x - b.x;
         let dy = a.y - b.y;
         let dist2 = dx * dx + dy * dy;
@@ -771,14 +898,16 @@ class GraphView {
         const fy = (dy / dist) * force * this.alpha;
         a.vx += fx;
         a.vy += fy;
-        b.vx -= fx;
-        b.vy -= fy;
+        if (!b.fixed) {
+          b.vx -= fx;
+          b.vy -= fy;
+        }
       }
     }
     for (const edge of this.edges) {
       const a = this.byId.get(edge.from);
       const b = this.byId.get(edge.to);
-      if (!a || !b) continue;
+      if (!a || !b || (a.fixed && b.fixed)) continue;
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
@@ -786,17 +915,21 @@ class GraphView {
       const force = (dist - rest) * 0.012 * this.alpha;
       const fx = (dx / dist) * force;
       const fy = (dy / dist) * force;
-      a.vx += fx;
-      a.vy += fy;
-      b.vx -= fx;
-      b.vy -= fy;
+      if (!a.fixed) {
+        a.vx += fx;
+        a.vy += fy;
+      }
+      if (!b.fixed) {
+        b.vx -= fx;
+        b.vy -= fy;
+      }
     }
-    for (const node of nodes) {
+    for (const node of movable) {
       node.vx += (cx - node.x) * 0.0016;
       node.vy += (cy - node.y) * 0.0016;
       node.vx *= 0.86;
       node.vy *= 0.86;
-      const speed = Math.hypot(node.vx, node.vy);
+      const speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
       if (speed > 9) {
         node.vx = (node.vx / speed) * 9;
         node.vy = (node.vy / speed) * 9;
@@ -820,13 +953,7 @@ class GraphView {
 
     const selected = this.selected;
     const hover = this.hover;
-    const adjacent = new Set();
-    if (selected) {
-      for (const edge of this.edges) {
-        if (edge.from === selected) adjacent.add(edge.to);
-        if (edge.to === selected) adjacent.add(edge.from);
-      }
-    }
+    const adjacent = this.adjacent;
 
     for (const edge of this.edges) {
       const a = this.byId.get(edge.from);
@@ -834,15 +961,21 @@ class GraphView {
       if (!a || !b) continue;
       const active = selected && (edge.from === selected || edge.to === selected);
       const dim = selected && !active;
-      const color = graphRelationColor(edge.type);
-      ctx.setLineDash(edge.synthetic ? [2, 6] : [7, 5]);
-      ctx.lineDashOffset = edge.synthetic ? this.edgeFlow * 0.6 : -this.edgeFlow;
+      const crossFile = edge.crossFile;
+      const color = edge.color;
+      if (active) {
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -this.edgeFlow;
+      } else {
+        ctx.setLineDash(edge.synthetic ? [2, 6] : crossFile ? [3, 7] : [4, 6]);
+        ctx.lineDashOffset = 0;
+      }
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.strokeStyle = color;
-      ctx.globalAlpha = dim ? 0.12 : active ? 0.95 : edge.synthetic ? 0.4 : 0.62;
-      ctx.lineWidth = active ? 1.5 : 0.9;
+      ctx.globalAlpha = active ? 0.92 : dim ? 0.04 : edge.synthetic ? 0.18 : crossFile ? 0.14 : 0.28;
+      ctx.lineWidth = active ? 1.35 : crossFile ? 0.55 : 0.7;
       ctx.stroke();
       if (active) {
         const angle = Math.atan2(b.y - a.y, b.x - a.x);
@@ -882,9 +1015,9 @@ class GraphView {
 
     for (const node of this.nodes) {
       const radius = node.kind === 'group'
-        ? 8 + node.salience * 5
-        : 4.5 + node.salience * 8 + (node === hover ? 1.5 : 0);
-      const color = graphNodeColor(node);
+        ? node.baseRadius
+        : node.baseRadius + (node === hover ? 1.5 : 0);
+      const color = node.color;
       const dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
       ctx.fillStyle = color;
@@ -917,11 +1050,11 @@ class GraphView {
       const important = node.degree >= 7 && showLabels;
       const always = showLabels && (node.kind === 'group' || this.nodes.length <= 40);
       if (!focused && !important && !always) continue;
-      const radius = node.kind === 'group' ? 8 + node.salience * 5 : 4.5 + node.salience * 8;
+      const radius = node.baseRadius;
       ctx.font = focused ? '600 11px Geist, "Segoe UI", sans-serif' : '10px Geist, "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      const label = truncate(node.title, 28);
+      const label = node.label;
       const metrics = ctx.measureText(label);
       ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
       ctx.fillRect(node.x - metrics.width / 2 - 3, node.y - radius - 17, metrics.width + 6, 14);
@@ -947,19 +1080,41 @@ class GraphView {
     const point = this.world(this.screen(event));
     for (let i = this.nodes.length - 1; i >= 0; i -= 1) {
       const node = this.nodes[i];
-      const radius = node.kind === 'group'
-        ? 16 + node.salience * 5
-        : 4.5 + node.salience * 8 + 4;
-      if (Math.hypot(node.x - point.x, node.y - point.y) <= radius) return node;
+      const radius = node.kind === 'group' ? node.baseRadius + 8 : node.baseRadius + 4;
+      const dx = node.x - point.x;
+      const dy = node.y - point.y;
+      if (dx * dx + dy * dy <= radius * radius) return node;
     }
     return null;
+  }
+
+  descendantsOf(id) {
+    const out = new Set();
+    const stack = [id];
+    while (stack.length) {
+      const bucket = this.childIds.get(stack.pop());
+      if (!bucket) continue;
+      for (const child of bucket) {
+        if (child === id || out.has(child)) continue;
+        out.add(child);
+        stack.push(child);
+      }
+    }
+    return out;
   }
 
   onDown(event) {
     const node = this.pick(event);
     this.moved = false;
+    if (event.pointerId != null && this.canvas.setPointerCapture) {
+      try { this.canvas.setPointerCapture(event.pointerId); } catch (error) {}
+    }
     if (node) {
       this.dragNode = node;
+      this.dragIds = this.descendantsOf(node.id);
+      this.dragAlpha = this.alpha;
+      this.dragSettled = this.settled;
+      this.alpha = 0;
       this.canvas.classList.add('dragging');
     } else {
       const point = this.screen(event);
@@ -971,20 +1126,29 @@ class GraphView {
     const point = this.screen(event);
     if (this.dragNode) {
       const world = this.world(point);
+      const dx = world.x - this.dragNode.x;
+      const dy = world.y - this.dragNode.y;
       this.dragNode.x = world.x;
       this.dragNode.y = world.y;
       this.dragNode.vx = 0;
       this.dragNode.vy = 0;
+      for (const id of this.dragIds) {
+        const child = this.byId.get(id);
+        if (!child) continue;
+        child.x += dx;
+        child.y += dy;
+        child.vx = 0;
+        child.vy = 0;
+      }
       this.moved = true;
-      this.alpha = Math.max(this.alpha, 0.25);
-      this.draw();
+      this.requestDraw();
       return;
     }
     if (this.pan) {
       this.transform.x = this.pan.ox + (point.x - this.pan.sx);
       this.transform.y = this.pan.oy + (point.y - this.pan.sy);
       if (Math.abs(point.x - this.pan.sx) + Math.abs(point.y - this.pan.sy) > 3) this.moved = true;
-      this.draw();
+      this.requestDraw();
       return;
     }
     const node = this.pick(event);
@@ -1006,11 +1170,22 @@ class GraphView {
   }
 
   onUp(event) {
+    if (event && event.pointerId != null && this.canvas.releasePointerCapture) {
+      try { this.canvas.releasePointerCapture(event.pointerId); } catch (error) {}
+    }
     if (this.dragNode) {
       const node = this.dragNode;
       this.dragNode = null;
+      this.dragIds = new Set();
       this.canvas.classList.remove('dragging');
-      if (!this.moved) {
+      if (this.moved) {
+        for (const item of this.nodes) item.fixed = false;
+        this.savePositions();
+        this.settled = true;
+        if (this.selected && this.adjacent.size) this.start();
+      } else {
+        this.alpha = this.dragAlpha;
+        this.settled = this.dragSettled;
         this.select(node.id);
         this.onSelect(node.id);
       }
@@ -1028,7 +1203,7 @@ class GraphView {
     this.transform.k = next;
     this.transform.x = point.x - world.x * next;
     this.transform.y = point.y - world.y * next;
-    this.draw();
+    this.requestDraw();
   }
 
   hideTip() {
@@ -1041,17 +1216,21 @@ class GraphView {
 
   select(id) {
     this.selected = id;
+    this.updateAdjacent();
     this.draw();
+    if ((id && this.adjacent.size) || this.alpha > 0) this.start();
   }
 
   focusNode(id) {
     const node = this.byId.get(id);
     if (!node) return;
     this.selected = id;
+    this.updateAdjacent();
     this.transform.k = Math.max(1.1, this.transform.k);
     this.transform.x = this.width / 2 - node.x * this.transform.k;
     this.transform.y = this.height / 2 - node.y * this.transform.k;
     this.draw();
+    if (this.adjacent.size || this.alpha > 0) this.start();
   }
 
   fit() {
@@ -1853,6 +2032,7 @@ function wireChrome() {
   projectSelect.addEventListener('change', () => {
     state.projectId = projectSelect.value;
     state.project = state.projects.find((project) => project.id === state.projectId) || null;
+    state.graphPositions = Object.create(null);
     localStorage.setItem('synapse.project', state.projectId);
     memoryRequestSeq += 1;
     memoryDetailSeq += 1;
