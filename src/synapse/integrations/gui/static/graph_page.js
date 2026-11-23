@@ -200,6 +200,7 @@
       synthetic: node.synthetic,
       path: node.path,
       lines: node.start_line ? node.start_line + '-' + (node.end_line || node.start_line) : '',
+      parentId: cfg.store.parents.get(node.id) || null,
       salience: node.salience,
       expandable: Boolean(node.expandable),
       expanded: cfg.store.expanded.has(node.id)
@@ -236,7 +237,7 @@
         };
       });
     var first = graph.nodes.length === 0;
-    graph.setData(nodes, edges, { fit: first && opts.fit !== false });
+    graph.setData(nodes, edges, { fit: first && opts.fit !== false, incremental: !first });
     renderChrome();
   }
 
