@@ -17,6 +17,12 @@
     { value: 'preference', label: 'preference' },
     { value: 'summary', label: 'summary' }
   ];
+  var EDGE_DASHES = {
+    active: [6, 4],
+    synthetic: [2, 6],
+    crossFile: [3, 7],
+    normal: [4, 6]
+  };
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -108,6 +114,7 @@
     this.canvas.addEventListener('pointerdown', function (event) { self.onDown(event); });
     this.canvas.addEventListener('pointermove', function (event) { self.onMove(event); });
     this.canvas.addEventListener('pointerup', function (event) { self.onUp(event); });
+    this.canvas.addEventListener('pointercancel', function (event) { self.onUp(event, true); });
     this.canvas.addEventListener('pointerleave', function () { self.hideTip(); });
     this.canvas.addEventListener('wheel', function (event) { self.onWheel(event); }, { passive: false });
     this.canvas.addEventListener('dblclick', function (event) {
@@ -198,6 +205,12 @@
       currentEdge.crossFile = Boolean(!currentEdge.synthetic && fromNode.path && toNode.path &&
         fromNode.path !== toNode.path);
       currentEdge.color = CORE.relationColor(currentEdge.type);
+      var edgeKind = currentEdge.synthetic ? 's' : currentEdge.crossFile ? 'c' : 'n';
+      currentEdge.groupKey = edgeKind + currentEdge.color;
+      currentEdge.dash = edgeKind === 's' ? EDGE_DASHES.synthetic
+        : edgeKind === 'c' ? EDGE_DASHES.crossFile : EDGE_DASHES.normal;
+      currentEdge.alpha = edgeKind === 's' ? 0.18 : edgeKind === 'c' ? 0.14 : 0.28;
+      currentEdge.width = edgeKind === 'c' ? 0.55 : 0.7;
     }
     this.updateAdjacent();
     this.childIds = new Map();
@@ -540,10 +553,6 @@
     var minY = -this.transform.y / k - pad;
     var maxX = (width - this.transform.x) / k + pad;
     var maxY = (height - this.transform.y) / k + pad;
-    var dashActive = [6, 4];
-    var dashSynthetic = [2, 6];
-    var dashCross = [3, 7];
-    var dashDefault = [4, 6];
     var activeEdges = [];
     var groups = new Map();
 
@@ -559,20 +568,16 @@
         activeEdges.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: edge.color });
         continue;
       }
-      var dim = selected && !active;
-      var crossFile = edge.crossFile;
-      var kind = edge.synthetic ? 's' : crossFile ? 'c' : 'n';
-      var key = kind + edge.color;
-      var group = groups.get(key);
+      var group = groups.get(edge.groupKey);
       if (!group) {
         group = {
           color: edge.color,
-          dash: kind === 's' ? dashSynthetic : kind === 'c' ? dashCross : dashDefault,
-          alpha: dim ? 0.04 : kind === 's' ? 0.18 : kind === 'c' ? 0.14 : 0.28,
-          width: kind === 'c' ? 0.55 : 0.7,
+          dash: edge.dash,
+          alpha: selected ? 0.04 : edge.alpha,
+          width: edge.width,
           segments: []
         };
-        groups.set(key, group);
+        groups.set(edge.groupKey, group);
       }
       group.segments.push(a.x, a.y, b.x, b.y);
     }
@@ -599,7 +604,7 @@
       var ay = activeEdge.ay;
       var bx = activeEdge.bx;
       var by = activeEdge.by;
-      ctx.setLineDash(dashActive);
+      ctx.setLineDash(EDGE_DASHES.active);
       ctx.lineDashOffset = -this.edgeFlow;
       ctx.strokeStyle = activeEdge.color;
       ctx.globalAlpha = 0.92;
@@ -818,7 +823,7 @@
     var node = this.pick(event);
     if (node !== this.hover) {
       this.hover = node;
-      this.draw();
+      this.requestDraw();
       if (node) {
         this.tip.innerHTML = esc(node.title) + '<div class="sg-tip-sub">' + esc(node.type) +
           ' · ' + esc(node.path || '') + (node.lines ? ':' + esc(node.lines) : '') + '</div>';
@@ -834,7 +839,7 @@
     }
   };
 
-  SidebarGraphView.prototype.onUp = function onUp(event) {
+  SidebarGraphView.prototype.onUp = function onUp(event, cancelled) {
     if (event && event.pointerId != null && this.canvas.releasePointerCapture) {
       try { this.canvas.releasePointerCapture(event.pointerId); } catch (error) {}
     }
@@ -852,8 +857,10 @@
         this.cancelDragFollow(false);
         this.alpha = this.dragAlpha;
         this.settled = this.dragSettled;
-        this.select(node.id);
-        if (this.callbacks.onSelect) this.callbacks.onSelect(node.id);
+        if (!cancelled) {
+          this.select(node.id);
+          if (this.callbacks.onSelect) this.callbacks.onSelect(node.id);
+        }
       }
       return;
     }
@@ -876,7 +883,7 @@
     this.tip.hidden = true;
     if (this.hover) {
       this.hover = null;
-      this.draw();
+      this.requestDraw();
     }
   };
 
