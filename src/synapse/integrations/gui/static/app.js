@@ -564,6 +564,8 @@ class GraphView {
     this.edges = [];
     this.byId = new Map();
     this.childIds = new Map();
+    this.edgeGroups = new Map();
+    this.activeEdges = [];
     this.transform = { x: 0, y: 0, k: 1 };
     this.alpha = 0;
     this.frame = null;
@@ -681,6 +683,8 @@ class GraphView {
     for (const edge of this.edges) {
       const fromNode = this.byId.get(edge.from);
       const toNode = this.byId.get(edge.to);
+      edge.a = fromNode;
+      edge.b = toNode;
       edge.crossFile = Boolean(!edge.synthetic && fromNode.path && toNode.path &&
         fromNode.path !== toNode.path);
       edge.color = graphRelationColor(edge.type);
@@ -1041,33 +1045,46 @@ class GraphView {
     const minY = -this.transform.y / k - pad;
     const maxX = (width - this.transform.x) / k + pad;
     const maxY = (height - this.transform.y) / k + pad;
-    const activeEdges = [];
-    const groups = new Map();
+    const activeEdges = this.activeEdges;
+    let activeCount = 0;
+    const groups = this.edgeGroups;
+    for (const group of groups.values()) group.segments.length = 0;
 
     for (const edge of this.edges) {
-      const a = this.byId.get(edge.from);
-      const b = this.byId.get(edge.to);
+      const a = edge.a || this.byId.get(edge.from);
+      const b = edge.b || this.byId.get(edge.to);
       if (!a || !b) continue;
       if ((a.x < minX && b.x < minX) || (a.x > maxX && b.x > maxX)
           || (a.y < minY && b.y < minY) || (a.y > maxY && b.y > maxY)) continue;
       const active = selected && (edge.from === selected || edge.to === selected);
       if (active) {
-        activeEdges.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: edge.color });
+        let slot = activeEdges[activeCount];
+        if (!slot) {
+          slot = {};
+          activeEdges[activeCount] = slot;
+        }
+        slot.ax = a.x;
+        slot.ay = a.y;
+        slot.bx = b.x;
+        slot.by = b.y;
+        slot.color = edge.color;
+        activeCount += 1;
         continue;
       }
       let group = groups.get(edge.groupKey);
       if (!group) {
-        group = {
-          color: edge.color,
-          dash: edge.dash,
-          alpha: selected ? 0.04 : edge.alpha,
-          width: edge.width,
-          segments: [],
-        };
+        group = { color: '', dash: null, alpha: 0, width: 0, segments: [] };
         groups.set(edge.groupKey, group);
+      }
+      if (!group.segments.length) {
+        group.color = edge.color;
+        group.dash = edge.dash;
+        group.alpha = selected ? 0.04 : edge.alpha;
+        group.width = edge.width;
       }
       group.segments.push(a.x, a.y, b.x, b.y);
     }
+    if (activeEdges.length > activeCount) activeEdges.length = activeCount;
 
     for (const group of groups.values()) {
       const segments = group.segments;
@@ -1085,7 +1102,8 @@ class GraphView {
       ctx.stroke();
     }
 
-    for (const activeEdge of activeEdges) {
+    for (let ae = 0; ae < activeCount; ae += 1) {
+      const activeEdge = activeEdges[ae];
       const { ax, ay, bx, by } = activeEdge;
       ctx.setLineDash(EDGE_DASHES.active);
       ctx.lineDashOffset = -this.edgeFlow;
