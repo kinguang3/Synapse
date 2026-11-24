@@ -77,6 +77,8 @@
     this.byId = new Map();
     this.positions = new Map();
     this.childIds = new Map();
+    this.edgeGroups = new Map();
+    this.activeEdges = [];
     this.transform = { x: 0, y: 0, k: 1 };
     this.alpha = 0;
     this.frame = null;
@@ -202,6 +204,8 @@
       var currentEdge = this.edges[ec];
       var fromNode = this.byId.get(currentEdge.from);
       var toNode = this.byId.get(currentEdge.to);
+      currentEdge.a = fromNode;
+      currentEdge.b = toNode;
       currentEdge.crossFile = Boolean(!currentEdge.synthetic && fromNode.path && toNode.path &&
         fromNode.path !== toNode.path);
       currentEdge.color = CORE.relationColor(currentEdge.type);
@@ -553,34 +557,47 @@
     var minY = -this.transform.y / k - pad;
     var maxX = (width - this.transform.x) / k + pad;
     var maxY = (height - this.transform.y) / k + pad;
-    var activeEdges = [];
-    var groups = new Map();
+    var activeEdges = this.activeEdges;
+    var activeCount = 0;
+    var groups = this.edgeGroups;
+    groups.forEach(function (group) { group.segments.length = 0; });
 
     for (var e = 0; e < this.edges.length; e += 1) {
       var edge = this.edges[e];
-      var a = this.byId.get(edge.from);
-      var b = this.byId.get(edge.to);
+      var a = edge.a || this.byId.get(edge.from);
+      var b = edge.b || this.byId.get(edge.to);
       if (!a || !b) continue;
       if ((a.x < minX && b.x < minX) || (a.x > maxX && b.x > maxX) ||
           (a.y < minY && b.y < minY) || (a.y > maxY && b.y > maxY)) continue;
       var active = selected && (edge.from === selected || edge.to === selected);
       if (active) {
-        activeEdges.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: edge.color });
+        var slot = activeEdges[activeCount];
+        if (!slot) {
+          slot = {};
+          activeEdges[activeCount] = slot;
+        }
+        slot.ax = a.x;
+        slot.ay = a.y;
+        slot.bx = b.x;
+        slot.by = b.y;
+        slot.color = edge.color;
+        activeCount += 1;
         continue;
       }
       var group = groups.get(edge.groupKey);
       if (!group) {
-        group = {
-          color: edge.color,
-          dash: edge.dash,
-          alpha: selected ? 0.04 : edge.alpha,
-          width: edge.width,
-          segments: []
-        };
+        group = { color: '', dash: null, alpha: 0, width: 0, segments: [] };
         groups.set(edge.groupKey, group);
+      }
+      if (!group.segments.length) {
+        group.color = edge.color;
+        group.dash = edge.dash;
+        group.alpha = selected ? 0.04 : edge.alpha;
+        group.width = edge.width;
       }
       group.segments.push(a.x, a.y, b.x, b.y);
     }
+    if (activeEdges.length > activeCount) activeEdges.length = activeCount;
 
     groups.forEach(function (group) {
       var segments = group.segments;
@@ -598,7 +615,7 @@
       ctx.stroke();
     });
 
-    for (var ae = 0; ae < activeEdges.length; ae += 1) {
+    for (var ae = 0; ae < activeCount; ae += 1) {
       var activeEdge = activeEdges[ae];
       var ax = activeEdge.ax;
       var ay = activeEdge.ay;
