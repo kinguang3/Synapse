@@ -20,6 +20,12 @@ const NODE_COLORS = GRAPH_CORE.NODE_COLORS || {
   requirement: '#fb923c',
 };
 const RELATION_COLORS = GRAPH_CORE.RELATION_COLORS || {};
+const EDGE_DASHES = {
+  active: [6, 4],
+  synthetic: [2, 6],
+  crossFile: [3, 7],
+  normal: [4, 6],
+};
 
 function graphNodeColor(node) {
   if (GRAPH_CORE.nodeColor) return GRAPH_CORE.nodeColor(node);
@@ -594,6 +600,7 @@ class GraphView {
     canvas.addEventListener('pointerdown', (event) => this.onDown(event));
     canvas.addEventListener('pointermove', (event) => this.onMove(event));
     canvas.addEventListener('pointerup', (event) => this.onUp(event));
+    canvas.addEventListener('pointercancel', (event) => this.onUp(event, true));
     canvas.addEventListener('pointerleave', () => { this.hideTip(); });
     canvas.addEventListener('wheel', (event) => this.onWheel(event), { passive: false });
     canvas.addEventListener('dblclick', (event) => {
@@ -677,6 +684,12 @@ class GraphView {
       edge.crossFile = Boolean(!edge.synthetic && fromNode.path && toNode.path &&
         fromNode.path !== toNode.path);
       edge.color = graphRelationColor(edge.type);
+      const edgeKind = edge.synthetic ? 's' : edge.crossFile ? 'c' : 'n';
+      edge.groupKey = edgeKind + edge.color;
+      edge.dash = edgeKind === 's' ? EDGE_DASHES.synthetic
+        : edgeKind === 'c' ? EDGE_DASHES.crossFile : EDGE_DASHES.normal;
+      edge.alpha = edgeKind === 's' ? 0.18 : edgeKind === 'c' ? 0.14 : 0.28;
+      edge.width = edgeKind === 'c' ? 0.55 : 0.7;
     }
     this.updateAdjacent();
     this.childIds = new Map();
@@ -1028,10 +1041,6 @@ class GraphView {
     const minY = -this.transform.y / k - pad;
     const maxX = (width - this.transform.x) / k + pad;
     const maxY = (height - this.transform.y) / k + pad;
-    const dashActive = [6, 4];
-    const dashSynthetic = [2, 6];
-    const dashCross = [3, 7];
-    const dashDefault = [4, 6];
     const activeEdges = [];
     const groups = new Map();
 
@@ -1046,20 +1055,16 @@ class GraphView {
         activeEdges.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: edge.color });
         continue;
       }
-      const dim = selected && !active;
-      const crossFile = edge.crossFile;
-      const kind = edge.synthetic ? 's' : crossFile ? 'c' : 'n';
-      const key = kind + edge.color;
-      let group = groups.get(key);
+      let group = groups.get(edge.groupKey);
       if (!group) {
         group = {
           color: edge.color,
-          dash: kind === 's' ? dashSynthetic : kind === 'c' ? dashCross : dashDefault,
-          alpha: dim ? 0.04 : kind === 's' ? 0.18 : kind === 'c' ? 0.14 : 0.28,
-          width: kind === 'c' ? 0.55 : 0.7,
+          dash: edge.dash,
+          alpha: selected ? 0.04 : edge.alpha,
+          width: edge.width,
           segments: [],
         };
-        groups.set(key, group);
+        groups.set(edge.groupKey, group);
       }
       group.segments.push(a.x, a.y, b.x, b.y);
     }
@@ -1082,7 +1087,7 @@ class GraphView {
 
     for (const activeEdge of activeEdges) {
       const { ax, ay, bx, by } = activeEdge;
-      ctx.setLineDash(dashActive);
+      ctx.setLineDash(EDGE_DASHES.active);
       ctx.lineDashOffset = -this.edgeFlow;
       ctx.strokeStyle = activeEdge.color;
       ctx.globalAlpha = 0.92;
@@ -1285,7 +1290,7 @@ class GraphView {
     const node = this.pick(event);
     if (node !== this.hover) {
       this.hover = node;
-      this.draw();
+      this.requestDraw();
       if (node) {
         this.tip.innerHTML = `${esc(node.title)}<div class="sub">${esc(node.type)} · ${esc(node.path || '')}${node.lines ? `:${esc(node.lines)}` : ''}</div>`;
       } else {
@@ -1300,7 +1305,7 @@ class GraphView {
     }
   }
 
-  onUp(event) {
+  onUp(event, cancelled) {
     if (event && event.pointerId != null && this.canvas.releasePointerCapture) {
       try { this.canvas.releasePointerCapture(event.pointerId); } catch (error) {}
     }
@@ -1318,8 +1323,10 @@ class GraphView {
         this.cancelDragFollow(false);
         this.alpha = this.dragAlpha;
         this.settled = this.dragSettled;
-        this.select(node.id);
-        this.onSelect(node.id);
+        if (!cancelled) {
+          this.select(node.id);
+          this.onSelect(node.id);
+        }
       }
       return;
     }
@@ -1342,7 +1349,7 @@ class GraphView {
     this.tip.hidden = true;
     if (this.hover) {
       this.hover = null;
-      this.draw();
+      this.requestDraw();
     }
   }
 
