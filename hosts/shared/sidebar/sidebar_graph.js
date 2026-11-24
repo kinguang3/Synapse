@@ -534,46 +534,94 @@
     var selected = this.selected;
     var hover = this.hover;
     var adjacent = this.adjacent;
+    var k = this.transform.k;
+    var pad = 40 / k;
+    var minX = -this.transform.x / k - pad;
+    var minY = -this.transform.y / k - pad;
+    var maxX = (width - this.transform.x) / k + pad;
+    var maxY = (height - this.transform.y) / k + pad;
+    var dashActive = [6, 4];
+    var dashSynthetic = [2, 6];
+    var dashCross = [3, 7];
+    var dashDefault = [4, 6];
+    var activeEdges = [];
+    var groups = new Map();
 
     for (var e = 0; e < this.edges.length; e += 1) {
       var edge = this.edges[e];
       var a = this.byId.get(edge.from);
       var b = this.byId.get(edge.to);
       if (!a || !b) continue;
+      if ((a.x < minX && b.x < minX) || (a.x > maxX && b.x > maxX) ||
+          (a.y < minY && b.y < minY) || (a.y > maxY && b.y > maxY)) continue;
       var active = selected && (edge.from === selected || edge.to === selected);
+      if (active) {
+        activeEdges.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, color: edge.color });
+        continue;
+      }
       var dim = selected && !active;
       var crossFile = edge.crossFile;
-      var color = edge.color;
-      if (active) {
-        ctx.setLineDash([6, 4]);
-        ctx.lineDashOffset = -this.edgeFlow;
-      } else {
-        ctx.setLineDash(edge.synthetic ? [2, 6] : crossFile ? [3, 7] : [4, 6]);
-        ctx.lineDashOffset = 0;
+      var kind = edge.synthetic ? 's' : crossFile ? 'c' : 'n';
+      var key = kind + edge.color;
+      var group = groups.get(key);
+      if (!group) {
+        group = {
+          color: edge.color,
+          dash: kind === 's' ? dashSynthetic : kind === 'c' ? dashCross : dashDefault,
+          alpha: dim ? 0.04 : kind === 's' ? 0.18 : kind === 'c' ? 0.14 : 0.28,
+          width: kind === 'c' ? 0.55 : 0.7,
+          segments: []
+        };
+        groups.set(key, group);
       }
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = color;
-      ctx.globalAlpha = active ? 0.92 : dim ? 0.04 : edge.synthetic ? 0.18 : crossFile ? 0.14 : 0.28;
-      ctx.lineWidth = active ? 1.35 : crossFile ? 0.55 : 0.7;
-      ctx.stroke();
-      if (active) {
-        var angle = Math.atan2(b.y - a.y, b.x - a.x);
-        var tx = b.x - Math.cos(angle) * 9;
-        var ty = b.y - Math.sin(angle) * 9;
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(tx - Math.cos(angle - 0.4) * 6, ty - Math.sin(angle - 0.4) * 6);
-        ctx.lineTo(tx - Math.cos(angle + 0.4) * 6, ty - Math.sin(angle + 0.4) * 6);
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      ctx.setLineDash([]);
-      ctx.lineDashOffset = 0;
+      group.segments.push(a.x, a.y, b.x, b.y);
     }
+
+    groups.forEach(function (group) {
+      var segments = group.segments;
+      if (!segments.length) return;
+      ctx.setLineDash(group.dash);
+      ctx.lineDashOffset = 0;
+      ctx.strokeStyle = group.color;
+      ctx.globalAlpha = group.alpha;
+      ctx.lineWidth = group.width;
+      ctx.beginPath();
+      for (var s = 0; s < segments.length; s += 4) {
+        ctx.moveTo(segments[s], segments[s + 1]);
+        ctx.lineTo(segments[s + 2], segments[s + 3]);
+      }
+      ctx.stroke();
+    });
+
+    for (var ae = 0; ae < activeEdges.length; ae += 1) {
+      var activeEdge = activeEdges[ae];
+      var ax = activeEdge.ax;
+      var ay = activeEdge.ay;
+      var bx = activeEdge.bx;
+      var by = activeEdge.by;
+      ctx.setLineDash(dashActive);
+      ctx.lineDashOffset = -this.edgeFlow;
+      ctx.strokeStyle = activeEdge.color;
+      ctx.globalAlpha = 0.92;
+      ctx.lineWidth = 1.35;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+      var angle = Math.atan2(by - ay, bx - ax);
+      var tx = bx - Math.cos(angle) * 9;
+      var ty = by - Math.sin(angle) * 9;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - Math.cos(angle - 0.4) * 6, ty - Math.sin(angle - 0.4) * 6);
+      ctx.lineTo(tx - Math.cos(angle + 0.4) * 6, ty - Math.sin(angle + 0.4) * 6);
+      ctx.closePath();
+      ctx.fillStyle = activeEdge.color;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
 
     function shape(node, radius) {
       ctx.beginPath();
@@ -599,6 +647,8 @@
       var radius = node.kind === 'group'
         ? node.baseRadius
         : node.baseRadius + (node === hover ? 1.5 : 0);
+      if (node.x + radius < minX || node.x - radius > maxX ||
+          node.y + radius < minY || node.y - radius > maxY) continue;
       var color = node.color;
       var dim = selected && !adjacent.has(node.id) && node.id !== selected;
       shape(node, radius);
@@ -627,20 +677,27 @@
     }
 
     var showLabels = this.transform.k >= 0.75;
+    var fontsSettled = !global.document || !global.document.fonts || global.document.fonts.status === 'loaded';
     for (var l = 0; l < this.nodes.length; l += 1) {
       var current = this.nodes[l];
       var focused = current.id === selected || current === hover;
       var important = current.degree >= 7 && showLabels;
       var always = showLabels && (current.kind === 'group' || this.nodes.length <= 40);
       if (!focused && !important && !always) continue;
+      if (current.x < minX || current.x > maxX || current.y < minY || current.y > maxY) continue;
       var labelRadius = current.baseRadius;
       ctx.font = focused ? '600 11px Geist, "Segoe UI", sans-serif' : '10px Geist, "Segoe UI", sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       var label = current.label;
-      var metrics = ctx.measureText(label);
+      var widthKey = focused ? 'focusedLabelWidth' : 'labelWidth';
+      var labelWidth = current[widthKey];
+      if (labelWidth == null || !fontsSettled) {
+        labelWidth = ctx.measureText(label).width;
+        if (fontsSettled) current[widthKey] = labelWidth;
+      }
       ctx.fillStyle = 'rgba(9, 9, 11, 0.85)';
-      ctx.fillRect(current.x - metrics.width / 2 - 3, current.y - labelRadius - 17, metrics.width + 6, 14);
+      ctx.fillRect(current.x - labelWidth / 2 - 3, current.y - labelRadius - 17, labelWidth + 6, 14);
       ctx.fillStyle = focused ? '#fafafa' : 'rgba(228, 228, 231, 0.7)';
       ctx.fillText(label, current.x, current.y - labelRadius - 5);
     }
