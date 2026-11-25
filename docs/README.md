@@ -16,6 +16,7 @@
 
 - [CLI](reference/cli.md)
 - [MCP Server](reference/mcp.md)
+- [Agent Skill](reference/skill.md)
 - [数据模型](reference/data-model.md)
 - [限制与边界](reference/limitations.md)
 - [性能基准](benchmarks/README.md)
