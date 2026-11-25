@@ -11,6 +11,8 @@ htmlcov/
 dist/
 build/
 .synapse/
+.archify/
+.opencode/
 .screenshots/
 .tmp*/
 /.pytest-run/
@@ -28,7 +30,6 @@ debug.log
 !.env.example
 mcp.json
 mcp.json.*
-.trae/
 *.bak
 *.tmp
 *.orig
