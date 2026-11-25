@@ -3,7 +3,7 @@
 param(
     [string]$Version = '0.1.1',
 
-    [ValidateSet('auto', 'code', 'code-insiders', 'trae-cn', 'trae')]
+    [ValidateSet('auto', 'code', 'code-insiders')]
     [string]$Editor = 'auto',
 
     [string]$VsixPath,
@@ -108,7 +108,7 @@ function Find-EditorCommand {
 }
 
 function Resolve-Editors {
-    $order = @('code', 'code-insiders', 'trae-cn', 'trae')
+    $order = @('code', 'code-insiders')
     if ($Editor -ne 'auto') {
         $order = @($Editor)
     }
@@ -129,7 +129,7 @@ function Resolve-Editors {
     }
 
     if (-not $found) {
-        throw 'No supported editor CLI found. Install VS Code, VS Code Insiders, Trae CN, or Trae.'
+        throw 'No supported VS Code-compatible editor CLI found. Install a VS Code-compatible editor and ensure its CLI is on PATH.'
     }
     return $found
 }
