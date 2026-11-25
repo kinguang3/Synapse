@@ -40,7 +40,7 @@ uvx --from synapse-knowledge synapse projects register . --index
 
 ## 客户端配置
 
-Trae 或其他 stdio Client 使用同一份配置：
+VS Code 兼容编辑器或其他 stdio Client 使用同一份配置：
 
 ```json
 {
