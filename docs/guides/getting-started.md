@@ -156,6 +156,22 @@ code --install-extension .\synapse-companion-0.1.1.vsix
 
 侧边栏默认自动启动本地 GUI 服务。如果关闭了 `synapse.autoStartServer`，可运行 `Synapse: Start Local Service` 手动启动。
 
-## 11. 清理
+## 11. 可选：安装 Agent Skill
+
+仓库在 `skills/synapse` 提供官方 agent skill，用于让 agent 按统一策略选择 MCP 或 CLI。安装到当前项目的 `.opencode/skills`：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
+```
+
+安装到用户级 opencode skills 目录：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1 -Scope User
+```
+
+安装到自定义目录时使用 `-Scope Custom -Target <path>`；目标已存在时加 `-Force`。Skill 只提供调用策略、参考文档和辅助脚本，不会启动服务，也不会自动注册 MCP。MCP 仍需按第 9 节配置。详见 [Agent Skill](../reference/skill.md)。
+
+## 12. 清理
 
 Synapse 不使用隐藏后台服务。删除项目数据可删除对应 SQLite 数据库；删除默认数据目录前请先确认没有需要保留的记忆。
