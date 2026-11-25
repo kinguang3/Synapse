@@ -63,7 +63,7 @@
 - 图模型主要覆盖 `CALLS`、`IMPORTS`、`CONTAINS` 等关系；构造函数参数注入不会自动成为图边，需要结合源码核对。
 - Core 调用在单个 worker 线程上串行执行；一个 MCP 进程内的并发请求不会并行访问数据库。
 - 进程退出时关闭 `Application`；外部 Client 负责重启崩溃或退出的 Server。
-- 已在真实 Trae CN `3.4.16` 中通过对话界面验证 9 个 MCP 工具的发现和 A-F 调用；Phase 2.2.1 的 `synapse_memory_get` 和 Phase 2.2.2 的 query-aware context 已纳入验证。
+- 已在真实 VS Code 兼容编辑器中通过对话界面验证 9 个 MCP 工具的发现和 A-F 调用；Phase 2.2.1 的 `synapse_memory_get` 和 Phase 2.2.2 的 query-aware context 已纳入验证。
 
 ## GUI
 
