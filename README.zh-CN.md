@@ -29,7 +29,7 @@
 
 - Windows 10/11 与 PowerShell 5.1+
 - [uv](https://docs.astral.sh/uv/)
-- 侧边栏需要 VS Code、VS Code Insiders、Trae CN 或 Trae
+- 侧边栏需要 VS Code 兼容编辑器
 
 `uv` 会自动下载 Python 3.11。macOS 和 Linux 用户可参考[快速开始](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md)手动安装。
 
