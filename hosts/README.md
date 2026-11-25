@@ -24,7 +24,7 @@ irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 | 
 code --install-extension D:\Synapse\dist\synapse-companion-0.1.1.vsix
 ```
 
-Trae CN 使用 `trae-cn --install-extension <path>`。安装后重启编辑器，从活动栏打开 **Synapse**，或运行 `Synapse: Open Companion Sidebar`。
+其他 VS Code 兼容编辑器如果提供 `--install-extension` CLI，使用对应命令安装同一个 VSIX。安装后重启编辑器，从活动栏打开 **Synapse**，或运行 `Synapse: Open Companion Sidebar`。
 
 ## 连接方式
 
