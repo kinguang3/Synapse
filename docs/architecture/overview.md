@@ -193,7 +193,7 @@ Shared Webview（hosts/shared/sidebar）
 - 扩展根目录是 `hosts/`，活动栏容器为 `synapseSidebar`，Webview view 为 `synapse.companion.sidebar`。
 - Webview 不直接访问网络，也不持有令牌；令牌保存在扩展 SecretStorage，只通过 `Authorization: Bearer` 发送。
 - 扩展宿主可手动或按配置启动本地 GUI 服务；服务仍复用同一个 Core、SQLite 和项目数据。
-- VS Code 1.146.0 与 Trae CN 3.4.20（VS Code 内核 1.107.1）已完成真实运行验证；Cursor 仅完成静态兼容性判断。
+- VS Code 1.146.0 与一款 VS Code 兼容编辑器（内核 1.107.1）已完成真实运行验证；Cursor 仅完成静态兼容性判断。
 - 共享 UI 使用零构建 JavaScript，与现有静态 GUI 一致；不引入 React、Tailwind、XYFlow 或 Node 构建链。
 - 详细设计见 [Phase 3.4 跨宿主 Sidebar 架构](../research/phase-3.4-sidebar-architecture.md)。
 
