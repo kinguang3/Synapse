@@ -2,7 +2,7 @@
 
 ## 推荐：一键安装（Windows）
 
-前置条件：Windows 10/11、PowerShell 5.1+、[uv](https://docs.astral.sh/uv/)，以及 VS Code 或 Trae。
+前置条件：Windows 10/11、PowerShell 5.1+、[uv](https://docs.astral.sh/uv/)，以及 VS Code 兼容编辑器。
 
 ```powershell
 irm https://github.com/kinguang3/Synapse/releases/latest/download/install.ps1 | iex
@@ -126,7 +126,7 @@ synapse index . --workers 8     # 调整解析并发
 
 ## 9. 连接 MCP Client
 
-推荐用 `uvx` 启动已发布包。以 Trae 的用户级 `mcp.json` 为例：
+推荐用 `uvx` 启动已发布包。以 VS Code 兼容编辑器的用户级 `mcp.json` 为例：
 
 ```json
 {
@@ -152,7 +152,7 @@ synapse index . --workers 8     # 调整解析并发
 code --install-extension .\synapse-companion-0.1.1.vsix
 ```
 
-Trae CN 使用 `trae-cn --install-extension .\synapse-companion-0.1.1.vsix`。安装后重启编辑器，从活动栏打开 Synapse。
+其他 VS Code 兼容编辑器如果提供 `--install-extension` CLI，使用对应命令安装同一个 VSIX。安装后重启编辑器，从活动栏打开 Synapse。
 
 侧边栏默认自动启动本地 GUI 服务。如果关闭了 `synapse.autoStartServer`，可运行 `Synapse: Start Local Service` 手动启动。
 
