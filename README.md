@@ -29,7 +29,7 @@
 
 - Windows 10/11 with PowerShell 5.1+
 - [uv](https://docs.astral.sh/uv/)
-- VS Code, VS Code Insiders, Trae CN, or Trae for the sidebar
+- A VS Code-compatible editor for the sidebar
 
 `uv` downloads Python 3.11 automatically. macOS and Linux users can follow the manual steps in [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md).
 
