@@ -123,6 +123,18 @@ synapse doctor
 
 For source installs, custom data directories, and manual GUI setup, see [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md).
 
+## Agent skill
+
+The repository includes an official agent skill in `skills/synapse`. It teaches agents when to use Synapse MCP tools or the CLI, with references for both interfaces.
+
+Install it into the current project's `.opencode/skills` directory:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
+```
+
+Use `-Scope User` for the user-level opencode skills directory, or `-Scope Custom -Target <path>` for another location. The skill does not start a service or register MCP automatically; configure MCP as described in [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md). See [Agent skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md).
+
 ## Common commands
 
 ```text
@@ -158,6 +170,7 @@ Override the data directory with `SYNAPSE_HOME`.
 - [Architecture](https://github.com/kinguang3/Synapse/blob/main/docs/architecture/overview.md)
 - [CLI](https://github.com/kinguang3/Synapse/blob/main/docs/reference/cli.md)
 - [MCP Server](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md)
+- [Agent skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md)
 - [Data model](https://github.com/kinguang3/Synapse/blob/main/docs/reference/data-model.md)
 - [Limitations](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md)
 
