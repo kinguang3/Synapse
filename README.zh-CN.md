@@ -123,6 +123,18 @@ synapse doctor
 
 源码安装、自定义数据目录和手动 GUI 启动方式见[快速开始](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md)。
 
+## Agent Skill
+
+仓库在 `skills/synapse` 提供官方 agent skill。它告诉 agent 何时使用 Synapse MCP 工具、何时回退到 CLI，并包含两套接口的参考资料。
+
+安装到当前项目的 `.opencode/skills`：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
+```
+
+使用 `-Scope User` 安装到用户级 opencode skills 目录，或使用 `-Scope Custom -Target <path>` 安装到其他位置。Skill 不会启动服务，也不会自动注册 MCP；MCP 仍需按[快速开始](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md)配置。详见 [Agent Skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md)。
+
 ## 常用命令
 
 ```text
@@ -158,6 +170,7 @@ synapse version
 - [架构](https://github.com/kinguang3/Synapse/blob/main/docs/architecture/overview.md)
 - [CLI](https://github.com/kinguang3/Synapse/blob/main/docs/reference/cli.md)
 - [MCP Server](https://github.com/kinguang3/Synapse/blob/main/docs/reference/mcp.md)
+- [Agent Skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md)
 - [数据模型](https://github.com/kinguang3/Synapse/blob/main/docs/reference/data-model.md)
 - [限制与边界](https://github.com/kinguang3/Synapse/blob/main/docs/reference/limitations.md)
 
