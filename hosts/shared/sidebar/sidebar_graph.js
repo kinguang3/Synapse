@@ -100,6 +100,13 @@
     this.dragReleasePending = false;
     this.pan = null;
     this.moved = false;
+    this.cameraFrame = null;
+    this.motionQuery = typeof global.matchMedia === 'function'
+      ? global.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    this.reducedMotion = Boolean(this.motionQuery && this.motionQuery.matches);
+    this.visibilityHandler = null;
+    this.motionHandler = null;
     this.dpr = Math.min(2, global.devicePixelRatio || 1);
     this.width = 0;
     this.height = 0;
@@ -127,6 +134,82 @@
       }
       if (!node) self.fit();
     });
+    this.visibilityHandler = function () { self.handleVisibility(); };
+    if (global.document && global.document.addEventListener) {
+      global.document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
+    this.motionHandler = function (event) {
+      self.reducedMotion = Boolean(event && event.matches);
+      if (self.reducedMotion) self.cancelCamera();
+      self.requestDraw();
+      if (!self.reducedMotion && self.selected && self.adjacent.size) self.start();
+    };
+    if (this.motionQuery) {
+      if (this.motionQuery.addEventListener) this.motionQuery.addEventListener('change', this.motionHandler);
+      else if (this.motionQuery.addListener) this.motionQuery.addListener(this.motionHandler);
+    }
+    if (global.document && global.document.fonts && global.document.fonts.ready) {
+      global.document.fonts.ready.then(function () { self.requestDraw(); });
+    }
+  };
+
+  SidebarGraphView.prototype.handleVisibility = function handleVisibility() {
+    if (!global.document) return;
+    if (global.document.hidden) {
+      if (this.frame) global.cancelAnimationFrame(this.frame);
+      if (this.drawFrame) global.cancelAnimationFrame(this.drawFrame);
+      if (this.dragFollowFrame) global.cancelAnimationFrame(this.dragFollowFrame);
+      this.frame = null;
+      this.drawFrame = null;
+      this.dragFollowFrame = null;
+      return;
+    }
+    if (this.dragOffsets.size && !this.dragNode) this.startDragFollow();
+    else if (this.alpha > 0 || (!this.reducedMotion && this.selected && this.adjacent.size)) this.start();
+    else this.requestDraw();
+  };
+
+  SidebarGraphView.prototype.cancelCamera = function cancelCamera() {
+    if (this.cameraFrame) global.cancelAnimationFrame(this.cameraFrame);
+    this.cameraFrame = null;
+  };
+
+  SidebarGraphView.prototype.setTransform = function setTransform(target, options) {
+    if (!target) return;
+    var opts = options || {};
+    var k = Math.max(0.25, Math.min(3, Number(target.k)));
+    var x = Number(target && target.x);
+    var y = Number(target && target.y);
+    if (!Number.isFinite(k) || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.cancelCamera();
+    var instant = opts.instant === true || this.reducedMotion ||
+      Boolean(global.document && global.document.hidden);
+    if (instant) {
+      this.transform = { x: x, y: y, k: k };
+      this.draw();
+      return;
+    }
+    var start = { x: this.transform.x, y: this.transform.y, k: this.transform.k };
+    var self = this;
+    var duration = Math.max(120, Math.min(520, Number(opts.duration) || 260));
+    var startedAt = 0;
+    var step = function step(timestamp) {
+      self.cameraFrame = null;
+      if (!startedAt) startedAt = timestamp;
+      var fraction = Math.max(0, Math.min(1, (timestamp - startedAt) / duration));
+      var eased = 1 - Math.pow(1 - fraction, 3);
+      self.transform.k = start.k + (k - start.k) * eased;
+      self.transform.x = start.x + (x - start.x) * eased;
+      self.transform.y = start.y + (y - start.y) * eased;
+      self.draw();
+      if (fraction < 1) {
+        self.cameraFrame = global.requestAnimationFrame(step);
+      } else {
+        self.transform = { x: x, y: y, k: k };
+        self.draw();
+      }
+    };
+    this.cameraFrame = global.requestAnimationFrame(step);
   };
 
   SidebarGraphView.prototype.resize = function resize() {
@@ -135,6 +218,7 @@
     this.height = Math.max(220, Math.round(rect.height));
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
+    this.cancelCamera();
     this.draw();
   };
 
@@ -142,13 +226,24 @@
     if (this.frame) global.cancelAnimationFrame(this.frame);
     if (this.drawFrame) global.cancelAnimationFrame(this.drawFrame);
     if (this.dragFollowFrame) global.cancelAnimationFrame(this.dragFollowFrame);
+    this.cancelCamera();
     this.frame = null;
     this.drawFrame = null;
     this.dragFollowFrame = null;
+    if (this.visibilityHandler && global.document && global.document.removeEventListener) {
+      global.document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
+    if (this.motionHandler && this.motionQuery) {
+      if (this.motionQuery.removeEventListener) this.motionQuery.removeEventListener('change', this.motionHandler);
+      else if (this.motionQuery.removeListener) this.motionQuery.removeListener(this.motionHandler);
+    }
+    this.visibilityHandler = null;
+    this.motionHandler = null;
     if (this.observer) this.observer.disconnect();
   };
 
   SidebarGraphView.prototype.setData = function setData(nodes, edges, options) {
+    this.cancelCamera();
     var opts = options || {};
     var incremental = this.nodes.length > 0 && opts.incremental !== false;
     var previous = new Map(this.nodes.map(function (node) { return [node.id, node]; }));
@@ -349,13 +444,13 @@
   };
 
   SidebarGraphView.prototype.start = function start() {
-    if (this.frame) return;
+    if (this.frame || (global.document && global.document.hidden)) return;
     var self = this;
     this.frame = global.requestAnimationFrame(function () { self.loop(); });
   };
 
   SidebarGraphView.prototype.requestDraw = function requestDraw() {
-    if (this.drawFrame) return;
+    if (this.drawFrame || (global.document && global.document.hidden)) return;
     var self = this;
     this.drawFrame = global.requestAnimationFrame(function () {
       self.drawFrame = null;
@@ -364,7 +459,7 @@
   };
 
   SidebarGraphView.prototype.startDragFollow = function startDragFollow() {
-    if (this.dragFollowFrame) return;
+    if (this.dragFollowFrame || (global.document && global.document.hidden)) return;
     var self = this;
     this.dragFollowFrame = global.requestAnimationFrame(function () { self.followDrag(); });
   };
@@ -441,7 +536,9 @@
 
   SidebarGraphView.prototype.loop = function loop() {
     this.frame = null;
-    this.edgeFlow = (this.edgeFlow + 0.55) % 60;
+    if (global.document && global.document.hidden) return;
+    var animateFlow = !this.reducedMotion;
+    if (animateFlow) this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     var active = this.step();
     this.draw();
     if (!active && !this.settled && !this.dragNode && !this.dragReleasePending) {
@@ -452,7 +549,8 @@
         this.callbacks.onStats({ nodes: this.nodes.length, edges: this.edges.length });
       }
     }
-    if (!this.dragNode && !this.dragReleasePending && (active || (this.selected && this.adjacent.size))) {
+    if (!this.dragNode && !this.dragReleasePending &&
+        (active || (animateFlow && this.selected && this.adjacent.size))) {
       var self = this;
       this.frame = global.requestAnimationFrame(function () { self.loop(); });
     }
@@ -768,6 +866,7 @@
   };
 
   SidebarGraphView.prototype.onDown = function onDown(event) {
+    this.cancelCamera();
     var node = this.pick(event);
     this.moved = false;
     if (event.pointerId != null && this.canvas.setPointerCapture) {
@@ -886,6 +985,7 @@
 
   SidebarGraphView.prototype.onWheel = function onWheel(event) {
     event.preventDefault();
+    this.cancelCamera();
     var point = this.screen(event);
     var factor = event.deltaY < 0 ? 1.12 : 0.89;
     var next = Math.min(3, Math.max(0.25, this.transform.k * factor));
@@ -908,7 +1008,7 @@
     this.selected = id;
     this.updateAdjacent();
     this.draw();
-    if ((id && this.adjacent.size) || this.alpha > 0) this.start();
+    if (this.alpha > 0 || (!this.reducedMotion && id && this.adjacent.size)) this.start();
   };
 
   SidebarGraphView.prototype.focusNode = function focusNode(id) {
@@ -916,11 +1016,13 @@
     if (!node) return;
     this.selected = id;
     this.updateAdjacent();
-    this.transform.k = Math.max(1.1, this.transform.k);
-    this.transform.x = this.width / 2 - node.x * this.transform.k;
-    this.transform.y = this.height / 2 - node.y * this.transform.k;
-    this.draw();
-    if (this.adjacent.size || this.alpha > 0) this.start();
+    var k = Math.max(1.1, this.transform.k);
+    this.setTransform({
+      k: k,
+      x: this.width / 2 - node.x * k,
+      y: this.height / 2 - node.y * k
+    }, { duration: 240 });
+    if (this.alpha > 0 || (!this.reducedMotion && this.adjacent.size)) this.start();
   };
 
   SidebarGraphView.prototype.fit = function fit() {
@@ -938,11 +1040,12 @@
     }
     var width = Math.max(40, maxX - minX);
     var height = Math.max(40, maxY - minY);
-    var k = Math.min(this.width / (width + 160), this.height / (height + 160), 1.7);
-    this.transform.k = Math.max(0.25, k);
-    this.transform.x = this.width / 2 - ((minX + maxX) / 2) * this.transform.k;
-    this.transform.y = this.height / 2 - ((minY + maxY) / 2) * this.transform.k;
-    this.draw();
+    var k = Math.max(0.25, Math.min(this.width / (width + 160), this.height / (height + 160), 1.7));
+    this.setTransform({
+      k: k,
+      x: this.width / 2 - ((minX + maxX) / 2) * k,
+      y: this.height / 2 - ((minY + maxY) / 2) * k
+    }, { duration: 260 });
   };
 
   function shellHtml() {
