@@ -173,6 +173,9 @@
     graph.onExpand = function (id) {
       expandNode(id);
     };
+    graph.onZoom = function () {
+      updateZoomHud(graph);
+    };
     state.graph = graph;
     state.cleanup = function () {
       graph.stop();
@@ -426,6 +429,9 @@
     });
     graph.onExpand = function (id) {
       expandNode(id);
+    };
+    graph.onZoom = function () {
+      updateZoomHud(graph);
     };
     state.graph = graph;
     state.cleanup = function () {

@@ -586,11 +586,19 @@ class GraphView {
     this.dragReleasePending = false;
     this.pan = null;
     this.moved = false;
+    this.cameraFrame = null;
+    this.motionQuery = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    this.reducedMotion = Boolean(this.motionQuery && this.motionQuery.matches);
+    this.visibilityHandler = null;
+    this.motionHandler = null;
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
     this.width = 0;
     this.height = 0;
     this.onStats = null;
     this.onExpand = null;
+    this.onZoom = null;
     this.bind();
     this.resize();
     this.observer = new ResizeObserver(() => this.resize());
@@ -613,6 +621,76 @@ class GraphView {
       }
       if (!node) this.fit();
     });
+    this.visibilityHandler = () => this.handleVisibility();
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+    this.motionHandler = (event) => {
+      this.reducedMotion = Boolean(event && event.matches);
+      if (this.reducedMotion) this.cancelCamera();
+      this.requestDraw();
+      if (!this.reducedMotion && this.selected && this.adjacent.size) this.start();
+    };
+    if (this.motionQuery) {
+      if (this.motionQuery.addEventListener) this.motionQuery.addEventListener('change', this.motionHandler);
+      else if (this.motionQuery.addListener) this.motionQuery.addListener(this.motionHandler);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => this.requestDraw());
+    }
+  }
+
+  handleVisibility() {
+    if (document.hidden) {
+      if (this.frame) cancelAnimationFrame(this.frame);
+      if (this.drawFrame) cancelAnimationFrame(this.drawFrame);
+      if (this.dragFollowFrame) cancelAnimationFrame(this.dragFollowFrame);
+      this.frame = null;
+      this.drawFrame = null;
+      this.dragFollowFrame = null;
+      return;
+    }
+    if (this.dragOffsets.size && !this.dragNode) this.startDragFollow();
+    else if (this.alpha > 0 || (!this.reducedMotion && this.selected && this.adjacent.size)) this.start();
+    else this.requestDraw();
+  }
+
+  cancelCamera() {
+    if (this.cameraFrame) cancelAnimationFrame(this.cameraFrame);
+    this.cameraFrame = null;
+  }
+
+  setTransform(target, options) {
+    if (!target) return;
+    const opts = options || {};
+    const k = Math.max(0.25, Math.min(3, Number(target.k)));
+    const x = Number(target && target.x);
+    const y = Number(target && target.y);
+    if (!Number.isFinite(k) || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    this.cancelCamera();
+    if (opts.instant === true || this.reducedMotion || document.hidden) {
+      this.transform = { x, y, k };
+      this.draw();
+      return;
+    }
+    const start = { x: this.transform.x, y: this.transform.y, k: this.transform.k };
+    const duration = Math.max(120, Math.min(520, Number(opts.duration) || 260));
+    let startedAt = 0;
+    const step = (timestamp) => {
+      this.cameraFrame = null;
+      if (!startedAt) startedAt = timestamp;
+      const fraction = Math.max(0, Math.min(1, (timestamp - startedAt) / duration));
+      const eased = 1 - Math.pow(1 - fraction, 3);
+      this.transform.k = start.k + (k - start.k) * eased;
+      this.transform.x = start.x + (x - start.x) * eased;
+      this.transform.y = start.y + (y - start.y) * eased;
+      this.draw();
+      if (fraction < 1) {
+        this.cameraFrame = requestAnimationFrame(step);
+      } else {
+        this.transform = { x, y, k };
+        this.draw();
+      }
+    };
+    this.cameraFrame = requestAnimationFrame(step);
   }
 
   resize() {
@@ -621,6 +699,7 @@ class GraphView {
     this.height = Math.max(360, Math.round(rect.height));
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
+    this.cancelCamera();
     this.draw();
   }
 
@@ -628,13 +707,22 @@ class GraphView {
     if (this.frame) cancelAnimationFrame(this.frame);
     if (this.drawFrame) cancelAnimationFrame(this.drawFrame);
     if (this.dragFollowFrame) cancelAnimationFrame(this.dragFollowFrame);
+    this.cancelCamera();
     this.frame = null;
     this.drawFrame = null;
     this.dragFollowFrame = null;
+    if (this.visibilityHandler) document.removeEventListener('visibilitychange', this.visibilityHandler);
+    if (this.motionHandler && this.motionQuery) {
+      if (this.motionQuery.removeEventListener) this.motionQuery.removeEventListener('change', this.motionHandler);
+      else if (this.motionQuery.removeListener) this.motionQuery.removeListener(this.motionHandler);
+    }
+    this.visibilityHandler = null;
+    this.motionHandler = null;
     if (this.observer) this.observer.disconnect();
   }
 
   setData(nodes, edges, options) {
+    this.cancelCamera();
     const opts = options || {};
     const incremental = this.nodes.length > 0 && opts.incremental !== false;
     const previous = new Map(this.nodes.map((node) => [node.id, node]));
@@ -857,12 +945,12 @@ class GraphView {
   }
 
   start() {
-    if (this.frame) return;
+    if (this.frame || document.hidden) return;
     this.frame = requestAnimationFrame(() => this.loop());
   }
 
   requestDraw() {
-    if (this.drawFrame) return;
+    if (this.drawFrame || document.hidden) return;
     this.drawFrame = requestAnimationFrame(() => {
       this.drawFrame = null;
       this.draw();
@@ -870,7 +958,7 @@ class GraphView {
   }
 
   startDragFollow() {
-    if (this.dragFollowFrame) return;
+    if (this.dragFollowFrame || document.hidden) return;
     this.dragFollowFrame = requestAnimationFrame(() => this.followDrag());
   }
 
@@ -939,7 +1027,9 @@ class GraphView {
 
   loop() {
     this.frame = null;
-    this.edgeFlow = (this.edgeFlow + 0.55) % 60;
+    if (document.hidden) return;
+    const animateFlow = !this.reducedMotion;
+    if (animateFlow) this.edgeFlow = (this.edgeFlow + 0.55) % 60;
     const active = this.step();
     this.draw();
     if (!active && !this.settled && !this.dragNode && !this.dragReleasePending) {
@@ -948,7 +1038,8 @@ class GraphView {
       this.savePositions();
       this.report();
     }
-    if (!this.dragNode && !this.dragReleasePending && (active || (this.selected && this.adjacent.size))) {
+    if (!this.dragNode && !this.dragReleasePending &&
+        (active || (animateFlow && this.selected && this.adjacent.size))) {
       this.frame = requestAnimationFrame(() => this.loop());
     }
   }
@@ -1206,6 +1297,7 @@ class GraphView {
       ctx.fillText(label, node.x, node.y - radius - 5);
     }
     ctx.restore();
+    if (this.onZoom) this.onZoom(this.transform.k);
   }
 
   screen(event) {
@@ -1248,6 +1340,7 @@ class GraphView {
   }
 
   onDown(event) {
+    this.cancelCamera();
     const node = this.pick(event);
     this.moved = false;
     if (event.pointerId != null && this.canvas.setPointerCapture) {
@@ -1353,6 +1446,7 @@ class GraphView {
 
   onWheel(event) {
     event.preventDefault();
+    this.cancelCamera();
     const point = this.screen(event);
     const factor = event.deltaY < 0 ? 1.12 : 0.89;
     const next = Math.min(3, Math.max(0.25, this.transform.k * factor));
@@ -1375,7 +1469,7 @@ class GraphView {
     this.selected = id;
     this.updateAdjacent();
     this.draw();
-    if ((id && this.adjacent.size) || this.alpha > 0) this.start();
+    if (this.alpha > 0 || (!this.reducedMotion && id && this.adjacent.size)) this.start();
   }
 
   focusNode(id) {
@@ -1383,11 +1477,13 @@ class GraphView {
     if (!node) return;
     this.selected = id;
     this.updateAdjacent();
-    this.transform.k = Math.max(1.1, this.transform.k);
-    this.transform.x = this.width / 2 - node.x * this.transform.k;
-    this.transform.y = this.height / 2 - node.y * this.transform.k;
-    this.draw();
-    if (this.adjacent.size || this.alpha > 0) this.start();
+    const k = Math.max(1.1, this.transform.k);
+    this.setTransform({
+      k,
+      x: this.width / 2 - node.x * k,
+      y: this.height / 2 - node.y * k,
+    }, { duration: 240 });
+    if (this.alpha > 0 || (!this.reducedMotion && this.adjacent.size)) this.start();
   }
 
   fit() {
@@ -1404,11 +1500,12 @@ class GraphView {
     }
     const width = Math.max(40, maxX - minX);
     const height = Math.max(40, maxY - minY);
-    const k = Math.min(this.width / (width + 160), this.height / (height + 160), 1.7);
-    this.transform.k = Math.max(0.25, k);
-    this.transform.x = this.width / 2 - ((minX + maxX) / 2) * this.transform.k;
-    this.transform.y = this.height / 2 - ((minY + maxY) / 2) * this.transform.k;
-    this.draw();
+    const k = Math.max(0.25, Math.min(this.width / (width + 160), this.height / (height + 160), 1.7));
+    this.setTransform({
+      k,
+      x: this.width / 2 - ((minX + maxX) / 2) * k,
+      y: this.height / 2 - ((minY + maxY) / 2) * k,
+    }, { duration: 260 });
   }
 
   report() {
@@ -2235,7 +2332,6 @@ function wireChrome() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) updateIndexPill();
   });
-  setInterval(() => { if (state.graph) updateZoomHud(state.graph); }, 400);
 }
 
 function boot() {
