@@ -158,13 +158,13 @@ code --install-extension .\synapse-companion-0.1.1.vsix
 
 ## 11. 可选：安装 Agent Skill
 
-仓库在 `skills/synapse` 提供官方 agent skill，用于让 agent 按统一策略选择 MCP 或 CLI。安装到当前项目的 `.opencode/skills`：
+仓库在 `skills/synapse` 提供官方 agent skill，用于让 agent 按统一策略选择 MCP 或 CLI。安装到当前项目的 skill 目录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
 ```
 
-安装到用户级 opencode skills 目录：
+安装到用户级 skill 目录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1 -Scope User
