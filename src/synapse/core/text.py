@@ -12,12 +12,7 @@ _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
 def split_identifier(value: str) -> list[str]:
-    parts: list[str] = []
-    for chunk in re.split(r"[_\-\s]+", value):
-        if not chunk:
-            continue
-        parts.extend(match.group(0).lower() for match in _CAMEL_RE.finditer(chunk))
-    return parts
+    return [match.group(0).lower() for match in _CAMEL_RE.finditer(value)]
 
 
 def cjk_grams(value: str, include_unigrams: bool = True) -> list[str]:
