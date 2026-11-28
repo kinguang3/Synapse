@@ -127,13 +127,13 @@ For source installs, custom data directories, and manual GUI setup, see [Getting
 
 The repository includes an official agent skill in `skills/synapse`. It teaches agents when to use Synapse MCP tools or the CLI, with references for both interfaces.
 
-Install it into the current project's `.opencode/skills` directory:
+Install it into the current project's skill directory:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
 ```
 
-Use `-Scope User` for the user-level opencode skills directory, or `-Scope Custom -Target <path>` for another location. The skill does not start a service or register MCP automatically; configure MCP as described in [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md). See [Agent skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md).
+Use `-Scope User` for the user-level skill directory, or `-Scope Custom -Target <path>` for another location. The skill does not start a service or register MCP automatically; configure MCP as described in [Getting started](https://github.com/kinguang3/Synapse/blob/main/docs/guides/getting-started.md). See [Agent skill](https://github.com/kinguang3/Synapse/blob/main/docs/reference/skill.md).
 
 ## Common commands
 
