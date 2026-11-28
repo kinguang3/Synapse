@@ -16,24 +16,22 @@ Without a persistent install:
 uvx --from synapse-knowledge synapse-mcp
 ```
 
-## Opencode configuration
+## Client configuration
 
-Merge this into the existing `opencode.json`:
+Add a local stdio server entry:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
+  "mcpServers": {
     "synapse": {
-      "type": "local",
-      "command": ["uvx", "--from", "synapse-knowledge", "synapse-mcp"],
-      "enabled": true
+      "command": "uvx",
+      "args": ["--from", "synapse-knowledge", "synapse-mcp"]
     }
   }
 }
 ```
 
-If `synapse-mcp` is already on `PATH`, use `"command": ["synapse-mcp"]` instead.
+Adjust the top-level key and wrapper fields to match your client's local MCP format. If `synapse-mcp` is already on `PATH`, use `"command": "synapse-mcp"` and omit `args`.
 
 ## Required workflow
 
