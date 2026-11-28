@@ -32,13 +32,13 @@ skills/synapse/
 
 ## 安装
 
-安装到当前项目的 `.opencode/skills/synapse`：
+安装到当前项目的 skill 目录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1
 ```
 
-安装到用户级 opencode skills 目录：
+安装到用户级 skill 目录：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1 -Scope User
@@ -50,7 +50,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\insta
 powershell -NoProfile -ExecutionPolicy Bypass -File skills\synapse\scripts\install.ps1 -Scope Custom -Target D:\path\to\skills\synapse
 ```
 
-目标已存在时需要加 `-Force`。`.opencode/` 是本地忽略目录，修改 skill 时应编辑 `skills/synapse` 源目录，再重新安装。
+目标已存在时需要加 `-Force`。项目级安装目录已被 Git 忽略；修改 skill 时应编辑 `skills/synapse` 源目录，再重新安装。
 
 ## 检查
 
