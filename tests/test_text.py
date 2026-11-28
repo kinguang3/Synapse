@@ -4,6 +4,9 @@ from synapse.core.text import build_fts_query, split_identifier, tokenize_for_se
 def test_split_identifier() -> None:
     assert split_identifier("BookRecommender") == ["book", "recommender"]
     assert split_identifier("HTTPClient") == ["http", "client"]
+    assert split_identifier("book_recommender") == ["book", "recommender"]
+    assert split_identifier("HTTP-client") == ["http", "client"]
+    assert split_identifier("book recommender") == ["book", "recommender"]
 
 
 def test_cjk_bigram_tokenization() -> None:
