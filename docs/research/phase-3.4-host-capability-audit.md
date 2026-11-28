@@ -14,7 +14,7 @@
 - 在本机 VS Code 1.146.0 中运行 Extension Development Host。
 - 将打包后的 VSIX 安装到隔离的 Trae CN 临时 profile，执行真实连接、搜索、上下文和打开文件。
 - Cursor 未安装，只做静态兼容性分析，不标记为已验证。
-- OpenCode 不在本阶段范围。
+- 其他 agent 宿主不在本阶段范围。
 
 ## 3. 宿主对照
 
