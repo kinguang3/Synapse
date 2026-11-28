@@ -21,7 +21,7 @@ build/
 *.db
 *.db-wal
 *.db-shm
-*.sqlite
+*.sqlite1
 *.sqlite3
 *.log
 debug.log
